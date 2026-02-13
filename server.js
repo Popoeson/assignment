@@ -80,10 +80,7 @@ app.post("/api/submissions", upload.single("file"), async (req, res) => {
     const tokenDoc = await Token.findOne({ token });
     if (!tokenDoc || tokenDoc.used) return res.status(400).json({ message: "Invalid or used token" });
 
-    // Extract original extension
-    const ext = path.extname(req.file.originalname);
-
-    // Upload file to Cloudinary with original name + extension
+    // Upload file to Cloudinary as raw
     const uploadResult = await new Promise((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         {
@@ -92,7 +89,6 @@ app.post("/api/submissions", upload.single("file"), async (req, res) => {
           use_filename: true,
           unique_filename: false,
           overwrite: false,
-          filename_override: path.basename(req.file.originalname, ext)
         },
         (error, result) => {
           if (error) reject(error);
@@ -101,8 +97,12 @@ app.post("/api/submissions", upload.single("file"), async (req, res) => {
       ).end(req.file.buffer);
     });
 
-    // Build final URL with extension
-    const fileUrl = `${uploadResult.secure_url}${ext}`;
+    // Build direct download URL using fl_attachment
+    let fileUrl = uploadResult.secure_url;
+
+    // Cloudinary fl_attachment version for direct download
+    // If the URL already contains /upload/, insert /fl_attachment/ after it
+    fileUrl = fileUrl.replace("/upload/", "/upload/fl_attachment/");
 
     // Save submission
     await Submission.create({
