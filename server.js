@@ -75,14 +75,16 @@ app.post("/api/tokens/validate", async (req, res) => {
 app.post("/api/submissions", upload.single("file"), async (req, res) => {
   try {
     const { name, department, course, phone, email, token } = req.body;
+
     if (!req.file) return res.status(400).json({ message: "File is required" });
+    if (!name || !department || !course || !phone || !email)
+      return res.status(400).json({ message: "All fields are required" });
 
     const tokenDoc = await Token.findOne({ token });
-    if (!tokenDoc || tokenDoc.used) return res.status(400).json({ message: "Invalid or used token" });
+    if (!tokenDoc || tokenDoc.used)
+      return res.status(400).json({ message: "Invalid or used token" });
 
-    const ext = path.extname(req.file.originalname);
-
-    // Upload file to Cloudinary with raw_convert to generate direct-download link
+    // Upload file to Cloudinary as raw
     const uploadResult = await new Promise((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         {
@@ -91,8 +93,6 @@ app.post("/api/submissions", upload.single("file"), async (req, res) => {
           use_filename: true,
           unique_filename: false,
           overwrite: false,
-          raw_convert: "attachment",           // ✅ ensures browser download
-          filename_override: path.basename(req.file.originalname, ext)
         },
         (error, result) => {
           if (error) reject(error);
@@ -101,7 +101,8 @@ app.post("/api/submissions", upload.single("file"), async (req, res) => {
       ).end(req.file.buffer);
     });
 
-    const fileUrl = uploadResult.secure_url; // direct-download URL
+    // Convert to direct-download URL
+    const fileUrl = uploadResult.secure_url.replace("/upload/", "/upload/fl_attachment/");
 
     // Save submission
     await Submission.create({
@@ -112,17 +113,16 @@ app.post("/api/submissions", upload.single("file"), async (req, res) => {
       email,
       fileUrl,
       fileName: req.file.originalname,
-      token
+      token,
     });
 
     // Mark token as used
     tokenDoc.used = true;
     await tokenDoc.save();
 
-    res.json({ message: "Assignment submitted successfully" });
-
+    res.json({ message: "Assignment submitted successfully", fileUrl });
   } catch (err) {
-    console.error(err);
+    console.error("Submission error:", err);
     res.status(500).json({ message: "Submission failed" });
   }
 });
