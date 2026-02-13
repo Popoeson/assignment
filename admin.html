@@ -145,10 +145,9 @@ const API_BASE = "https://assignment-pd4v.onrender.com/api";
 
 /* ---------- CLOUDINARY DOWNLOAD FIX ---------- */
 function cloudinaryDownload(url) {
-  return url.replace(
-    /\/upload\/v(\d+)\//,
-    "/upload/fl_attachment/v$1/"
-  );
+  // Cloudinary URLs have format: https://res.cloudinary.com/<cloud>/raw/upload/v123456/path/to/file.ext
+  // Replace /upload/ with /upload/fl_attachment/ to force download
+  return url.replace("/upload/", "/upload/fl_attachment/");
 }
 
 /* ---------- TABS ---------- */
@@ -167,9 +166,13 @@ const searchAssignments = document.getElementById("searchAssignments");
 const filterDepartment = document.getElementById("filterDepartment");
 
 async function fetchAssignments() {
-  const res = await fetch(`${API_BASE}/submissions`);
-  const data = await res.json();
-  renderAssignments(data);
+  try {
+    const res = await fetch(`${API_BASE}/submissions`);
+    const data = await res.json();
+    renderAssignments(data);
+  } catch (err) {
+    console.error("Error fetching assignments:", err);
+  }
 }
 
 function renderAssignments(assignments) {
@@ -183,22 +186,26 @@ function renderAssignments(assignments) {
       (!search || a.name.toLowerCase().includes(search) || a.email.toLowerCase().includes(search))
     )
     .forEach(a => {
+      // Ensure the Cloudinary URL uses fl_attachment for direct download
       const downloadUrl = cloudinaryDownload(a.fileUrl);
 
-      assignmentsBody.innerHTML += `
-        <tr>
-          <td>${a.name}</td>
-          <td>${a.department}</td>
-          <td>${a.course}</td>
-          <td>${a.phone}</td>
-          <td>${a.email}</td>
-          <td>
-            <a href="${downloadUrl}" download="${a.fileName}">Download</a>
-          </td>
-          <td>${a.token}</td>
-          <td>${new Date(a.submittedAt).toLocaleString()}</td>
-        </tr>
+      // Append row
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${a.name}</td>
+        <td>${a.department}</td>
+        <td>${a.course}</td>
+        <td>${a.phone}</td>
+        <td>${a.email}</td>
+        <td>
+          <a href="${downloadUrl}" download="${a.fileName}">
+            Download
+          </a>
+        </td>
+        <td>${a.token}</td>
+        <td>${new Date(a.submittedAt).toLocaleString()}</td>
       `;
+      assignmentsBody.appendChild(tr);
     });
 }
 
@@ -213,9 +220,13 @@ const searchTokens = document.getElementById("searchTokens");
 const filterStatus = document.getElementById("filterStatus");
 
 async function fetchTokens() {
-  const res = await fetch(`${API_BASE}/tokens`);
-  const data = await res.json();
-  renderTokens(data);
+  try {
+    const res = await fetch(`${API_BASE}/tokens`);
+    const data = await res.json();
+    renderTokens(data);
+  } catch (err) {
+    console.error("Error fetching tokens:", err);
+  }
 }
 
 function renderTokens(tokens) {
@@ -229,35 +240,38 @@ function renderTokens(tokens) {
       (!search || t.token.toLowerCase().includes(search))
     )
     .forEach(t => {
-      tokenList.innerHTML += `
-        <div class="token-item">
-          <span>${t.token}</span>
-          <span class="token-status ${t.used ? "used" : "unused"}">
-            ${t.used ? "Used" : "Unused"}
-          </span>
-        </div>
+      const div = document.createElement("div");
+      div.classList.add("token-item");
+      div.innerHTML = `
+        <span>${t.token}</span>
+        <span class="token-status ${t.used ? "used" : "unused"}">
+          ${t.used ? "Used" : "Unused"}
+        </span>
       `;
+      tokenList.appendChild(div);
     });
 }
 
 document.getElementById("generateTokens").onclick = async () => {
   const amount = Number(tokenAmount.value);
-  if (!amount) return alert("Enter a valid amount");
+  if (!amount || amount <= 0) return alert("Enter a valid amount");
 
-  await fetch(`${API_BASE}/tokens/generate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ amount })
-  });
-
-  tokenAmount.value = "";
-  fetchTokens();
+  try {
+    await fetch(`${API_BASE}/tokens/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount })
+    });
+    tokenAmount.value = "";
+    fetchTokens();
+  } catch (err) {
+    console.error("Error generating tokens:", err);
+  }
 };
 
 searchTokens.oninput = fetchTokens;
 filterStatus.onchange = fetchTokens;
 fetchTokens();
 </script>
-
 </body>
 </html>
