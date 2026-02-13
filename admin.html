@@ -4,24 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Panel - Assignment Portal</title>
-  <style>
-    /* ---------- BASIC RESET ---------- */
-    * { margin:0; padding:0; box-sizing:border-box; font-family:sans-serif; }
 
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:sans-serif; }
     body { background: #f5f3f0; color: #333; }
 
-    /* ---------- HEADER ---------- */
     header {
       background: linear-gradient(90deg, #d9d9d9, #f5f0e1);
       padding: 1rem 2rem;
       text-align: center;
       border-bottom: 2px solid #ccc;
     }
-    header h1 { font-size: 1.8rem; margin-bottom:0.3rem; }
-    header h2 { font-size: 1.2rem; margin-bottom:0.3rem; color: #555; }
+    header h1 { font-size: 1.8rem; }
+    header h2 { font-size: 1.2rem; color: #555; }
     header h3 { font-size: 1rem; color: #777; }
 
-    /* ---------- TABS ---------- */
     .tabs { display: flex; justify-content: center; margin: 1rem 0; gap: 1rem; }
     .tab-btn {
       padding: 0.5rem 1rem;
@@ -29,21 +26,18 @@
       cursor: pointer;
       background: #e0ded7;
       border-radius: 5px;
-      transition: 0.2s;
     }
     .tab-btn.active { background: #bfb8a5; font-weight: bold; }
 
-    /* ---------- SECTION CONTAINER ---------- */
     .section { display: none; padding: 1rem 2rem; }
     .section.active { display: block; }
 
-    /* ---------- SEARCH & FILTER ---------- */
     .controls {
       display: flex;
       justify-content: space-between;
       margin-bottom: 1rem;
-      flex-wrap: wrap;
       gap: 1rem;
+      flex-wrap: wrap;
     }
     .controls input, .controls select {
       padding: 0.4rem 0.6rem;
@@ -51,23 +45,17 @@
       border: 1px solid #aaa;
     }
 
-    /* ---------- TABLE ---------- */
     table {
       width: 100%;
       border-collapse: collapse;
       background: #fff;
-      border-radius: 5px;
-      overflow: hidden;
     }
     table th, table td {
       padding: 0.6rem 0.8rem;
       border-bottom: 1px solid #ddd;
-      text-align: left;
     }
     table th { background: #e0ded7; }
-    table tr:hover { background: #f0f0f0; }
 
-    /* ---------- TOKEN GENERATION ---------- */
     .token-form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
     .token-form input { width: 80px; }
     .token-form button {
@@ -78,7 +66,6 @@
       cursor: pointer;
     }
 
-    /* ---------- TOKEN DISPLAY ---------- */
     .token-list { margin-top: 1rem; }
     .token-item {
       background: #fff;
@@ -92,6 +79,7 @@
     .token-status.unused { color: green; }
   </style>
 </head>
+
 <body>
 
 <header>
@@ -105,7 +93,6 @@
   <button class="tab-btn" data-tab="tokens">Tokens</button>
 </div>
 
-<!-- ---------- ASSIGNMENTS SECTION ---------- -->
 <section id="assignments" class="section active">
   <div class="controls">
     <input type="text" id="searchAssignments" placeholder="Search by student name or email...">
@@ -135,13 +122,10 @@
         <th>Submitted At</th>
       </tr>
     </thead>
-    <tbody id="assignmentsBody">
-      <!-- Filled by JS -->
-    </tbody>
+    <tbody id="assignmentsBody"></tbody>
   </table>
 </section>
 
-<!-- ---------- TOKENS SECTION ---------- -->
 <section id="tokens" class="section">
   <div class="token-form">
     <input type="number" id="tokenAmount" placeholder="Amount">
@@ -153,120 +137,118 @@
       <option value="unused">Unused</option>
     </select>
   </div>
-
-  <div class="token-list" id="tokenList">
-    <!-- Tokens will appear here -->
-  </div>
+  <div class="token-list" id="tokenList"></div>
 </section>
 
 <script>
 const API_BASE = "https://assignment-pd4v.onrender.com/api";
 
+/* ---------- TABS ---------- */
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.tab).classList.add("active");
+  };
+});
+
+/* ---------- ASSIGNMENTS ---------- */
 const assignmentsBody = document.getElementById("assignmentsBody");
 const searchAssignments = document.getElementById("searchAssignments");
 const filterDepartment = document.getElementById("filterDepartment");
 
-let allAssignments = [];
-
-/* ===============================
-   FETCH ASSIGNMENTS
-   =============================== */
 async function fetchAssignments() {
-  try {
-    const res = await fetch(`${API_BASE}/assignments`);
-
-    if (!res.ok) {
-      throw new Error("Failed to fetch assignments");
-    }
-
-    const data = await res.json();
-    allAssignments = data;
-    renderAssignments(allAssignments);
-  } catch (err) {
-    console.error(err);
-    assignmentsBody.innerHTML = `
-      <tr>
-        <td colspan="9" style="text-align:center;color:red;">
-          Failed to load assignments
-        </td>
-      </tr>
-    `;
-  }
+  const res = await fetch(`${API_BASE}/submissions`);
+  const data = await res.json();
+  renderAssignments(data);
 }
 
-/* ===============================
-   RENDER TABLE
-   =============================== */
 function renderAssignments(assignments) {
-  const searchTerm = searchAssignments.value.toLowerCase();
-  const deptFilter = filterDepartment.value;
-
+  const search = searchAssignments.value.toLowerCase();
+  const dept = filterDepartment.value;
   assignmentsBody.innerHTML = "";
 
-  const filtered = assignments.filter(a =>
-    (!deptFilter || a.department === deptFilter) &&
-    (
-      !searchTerm ||
-      a.name.toLowerCase().includes(searchTerm) ||
-      a.email.toLowerCase().includes(searchTerm) ||
-      a.course.toLowerCase().includes(searchTerm)
+  assignments
+    .filter(a =>
+      (!dept || a.department === dept) &&
+      (!search || a.name.toLowerCase().includes(search) || a.email.toLowerCase().includes(search))
     )
-  );
+    .forEach(a => {
+      const downloadUrl = a.fileUrl.replace("/upload/", "/upload/fl_attachment/");
 
-  if (filtered.length === 0) {
-    assignmentsBody.innerHTML = `
-      <tr>
-        <td colspan="9" style="text-align:center;">
-          No assignments found
-        </td>
-      </tr>
-    `;
-    return;
-  }
-
-  filtered.forEach(a => {
-    const tr = document.createElement("tr");
-
-    // ✅ FORCE CLOUDINARY DOWNLOAD (FIXES 404 & UNSUPPORTED FORMAT)
-    const downloadUrl = a.fileUrl.replace(
-      "/upload/",
-      "/upload/fl_attachment/"
-    );
-
-    tr.innerHTML = `
-      <td>${a.name}</td>
-      <td>${a.department}</td>
-      <td>${a.course}</td>
-      <td>${a.phone}</td>
-      <td>${a.email}</td>
-      <td>
-        <a href="${downloadUrl}" download="${a.fileName}">
-          Download
-        </a>
-      </td>
-      <td>${a.token}</td>
-      <td>${new Date(a.submittedAt).toLocaleString()}</td>
-    `;
-
-    assignmentsBody.appendChild(tr);
-  });
+      assignmentsBody.innerHTML += `
+        <tr>
+          <td>${a.name}</td>
+          <td>${a.department}</td>
+          <td>${a.course}</td>
+          <td>${a.phone}</td>
+          <td>${a.email}</td>
+          <td>
+            <a href="${downloadUrl}" download="${a.fileName}">Download</a>
+          </td>
+          <td>${a.token}</td>
+          <td>${new Date(a.submittedAt).toLocaleString()}</td>
+        </tr>
+      `;
+    });
 }
 
-/* ===============================
-   SEARCH & FILTER
-   =============================== */
-searchAssignments.addEventListener("input", () =>
-  renderAssignments(allAssignments)
-);
-
-filterDepartment.addEventListener("change", () =>
-  renderAssignments(allAssignments)
-);
-
-/* ===============================
-   INIT
-   =============================== */
+searchAssignments.oninput = fetchAssignments;
+filterDepartment.onchange = fetchAssignments;
 fetchAssignments();
+
+/* ---------- TOKENS ---------- */
+const tokenList = document.getElementById("tokenList");
+const tokenAmount = document.getElementById("tokenAmount");
+const searchTokens = document.getElementById("searchTokens");
+const filterStatus = document.getElementById("filterStatus");
+
+async function fetchTokens() {
+  const res = await fetch(`${API_BASE}/tokens`);
+  const data = await res.json();
+  renderTokens(data);
+}
+
+function renderTokens(tokens) {
+  const search = searchTokens.value.toLowerCase();
+  const status = filterStatus.value;
+  tokenList.innerHTML = "";
+
+  tokens
+    .filter(t =>
+      (!status || (t.used ? "used" : "unused") === status) &&
+      (!search || t.token.toLowerCase().includes(search))
+    )
+    .forEach(t => {
+      tokenList.innerHTML += `
+        <div class="token-item">
+          <span>${t.token}</span>
+          <span class="token-status ${t.used ? "used" : "unused"}">
+            ${t.used ? "Used" : "Unused"}
+          </span>
+        </div>
+      `;
+    });
+}
+
+document.getElementById("generateTokens").onclick = async () => {
+  const amount = Number(tokenAmount.value);
+  if (!amount) return alert("Enter a valid amount");
+
+  await fetch(`${API_BASE}/tokens/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount })
+  });
+
+  tokenAmount.value = "";
+  fetchTokens();
+};
+
+searchTokens.oninput = fetchTokens;
+filterStatus.onchange = fetchTokens;
+fetchTokens();
 </script>
 
 </body>
