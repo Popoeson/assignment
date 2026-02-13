@@ -191,27 +191,31 @@
   }
 
   function renderAssignments(assignments) {
-    const searchTerm = searchAssignments.value.toLowerCase();
-    const deptFilter = filterDepartment.value;
-    assignmentsBody.innerHTML = "";
-    assignments
-      .filter(a => (!deptFilter || a.department === deptFilter) &&
-                   (!searchTerm || a.name.toLowerCase().includes(searchTerm) || a.email.toLowerCase().includes(searchTerm)))
-      .forEach(a => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${a.name}</td>
-          <td>${a.department}</td>
-          <td>${a.course}</td>
-          <td>${a.phone}</td>
-          <td>${a.email}</td>
-          <td><a href="${a.fileUrl}" target="_blank">View</a></td>
-          <td>${a.token}</td>
-          <td>${new Date(a.submittedAt).toLocaleString()}</td>
-        `;
-        assignmentsBody.appendChild(tr);
-      });
-  }
+  const searchTerm = searchAssignments.value.toLowerCase();
+  const deptFilter = filterDepartment.value;
+  assignmentsBody.innerHTML = "";
+  assignments
+    .filter(a => (!deptFilter || a.department === deptFilter) &&
+                 (!searchTerm || a.name.toLowerCase().includes(searchTerm) || a.email.toLowerCase().includes(searchTerm)))
+    .forEach(a => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${a.name}</td>
+        <td>${a.department}</td>
+        <td>${a.course}</td>
+        <td>${a.phone}</td>
+        <td>${a.email}</td>
+        <td>
+          <a href="${a.fileUrl}?dl=1" download="${a.fileName}">
+            Download
+          </a>
+        </td>
+        <td>${a.token}</td>
+        <td>${new Date(a.submittedAt).toLocaleString()}</td>
+      `;
+      assignmentsBody.appendChild(tr);
+    });
+}
 
   searchAssignments.addEventListener("input", fetchAssignments);
   filterDepartment.addEventListener("change", fetchAssignments);
