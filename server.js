@@ -4,6 +4,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const multer = require("multer");
 const cloudinary = require("cloudinary").v2;
+const path = require("path");
 
 const app = express();
 
@@ -24,15 +25,12 @@ mongoose.connect(process.env.MONGO_URI)
   .catch(err => console.error("❌ MongoDB error:", err));
 
 /* ---------- SCHEMAS ---------- */
-
-// Token Schema
 const tokenSchema = new mongoose.Schema({
   token: { type: String, unique: true },
   used: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });
 
-// Submission Schema
 const submissionSchema = new mongoose.Schema({
   name: String,
   department: String,
@@ -55,11 +53,9 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });
 
-/* ---------- ROUTES ---------- */
-
 /* ---------- STUDENT ROUTES ---------- */
 
-// Validate Token
+// Validate token
 app.post("/api/tokens/validate", async (req, res) => {
   try {
     const { token } = req.body;
@@ -75,25 +71,28 @@ app.post("/api/tokens/validate", async (req, res) => {
   }
 });
 
-/* ---------- SUBMIT ASSIGNMENT ---------- */
+// Submit assignment
 app.post("/api/submissions", upload.single("file"), async (req, res) => {
   try {
     const { name, department, course, phone, email, token } = req.body;
-
     if (!req.file) return res.status(400).json({ message: "File is required" });
 
     const tokenDoc = await Token.findOne({ token });
     if (!tokenDoc || tokenDoc.used) return res.status(400).json({ message: "Invalid or used token" });
 
-    /* Upload file to Cloudinary (RAW) with original filename and extension */
+    // Extract original extension
+    const ext = path.extname(req.file.originalname);
+
+    // Upload file to Cloudinary with original name + extension
     const uploadResult = await new Promise((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         {
           resource_type: "raw",
           folder: "assignments",
-          use_filename: true,       // preserves original file name
-          unique_filename: false,   // avoids random renaming
-          overwrite: false
+          use_filename: true,
+          unique_filename: false,
+          overwrite: false,
+          filename_override: path.basename(req.file.originalname, ext)
         },
         (error, result) => {
           if (error) reject(error);
@@ -102,19 +101,22 @@ app.post("/api/submissions", upload.single("file"), async (req, res) => {
       ).end(req.file.buffer);
     });
 
-    /* Save submission */
+    // Build final URL with extension
+    const fileUrl = `${uploadResult.secure_url}${ext}`;
+
+    // Save submission
     await Submission.create({
       name,
       department,
       course,
       phone,
       email,
-      fileUrl: uploadResult.secure_url, // now includes filename + extension
+      fileUrl,
       fileName: req.file.originalname,
       token
     });
 
-    /* Mark token as used */
+    // Mark token as used
     tokenDoc.used = true;
     await tokenDoc.save();
 
