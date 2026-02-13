@@ -57,58 +57,37 @@ const upload = multer({
 
 /* ---------- ROUTES ---------- */
 
-/**
- * Validate Token
- * POST /api/tokens/validate
- */
+/* ---------- STUDENT ROUTES ---------- */
+
+// Validate Token
 app.post("/api/tokens/validate", async (req, res) => {
   try {
     const { token } = req.body;
-    if (!token) {
-      return res.status(400).json({ message: "Token is required" });
-    }
+    if (!token) return res.status(400).json({ message: "Token is required" });
 
     const existingToken = await Token.findOne({ token });
-
-    if (!existingToken) {
-      return res.status(400).json({ message: "Invalid token" });
-    }
-
-    if (existingToken.used) {
-      return res.status(400).json({ message: "Token already used" });
-    }
+    if (!existingToken) return res.status(400).json({ message: "Invalid token" });
+    if (existingToken.used) return res.status(400).json({ message: "Token already used" });
 
     res.json({ message: "Token valid" });
-
   } catch (err) {
     res.status(500).json({ message: "Server error" });
   }
 });
 
-/**
- * Submit Assignment
- * POST /api/submissions
- */
+// Submit Assignment
 app.post("/api/submissions", upload.single("file"), async (req, res) => {
   try {
     const { name, department, course, phone, email, token } = req.body;
-
-    if (!req.file) {
-      return res.status(400).json({ message: "File is required" });
-    }
+    if (!req.file) return res.status(400).json({ message: "File is required" });
 
     const tokenDoc = await Token.findOne({ token });
-    if (!tokenDoc || tokenDoc.used) {
-      return res.status(400).json({ message: "Invalid or used token" });
-    }
+    if (!tokenDoc || tokenDoc.used) return res.status(400).json({ message: "Invalid or used token" });
 
-    /* Upload file to Cloudinary (RAW) */
+    // Upload file to Cloudinary (RAW)
     const uploadResult = await new Promise((resolve, reject) => {
       cloudinary.uploader.upload_stream(
-        {
-          resource_type: "raw",
-          folder: "assignments",
-        },
+        { resource_type: "raw", folder: "assignments" },
         (error, result) => {
           if (error) reject(error);
           else resolve(result);
@@ -116,7 +95,7 @@ app.post("/api/submissions", upload.single("file"), async (req, res) => {
       ).end(req.file.buffer);
     });
 
-    /* Save submission */
+    // Save submission
     await Submission.create({
       name,
       department,
@@ -128,7 +107,7 @@ app.post("/api/submissions", upload.single("file"), async (req, res) => {
       token
     });
 
-    /* Mark token as used */
+    // Mark token as used
     tokenDoc.used = true;
     await tokenDoc.save();
 
@@ -137,6 +116,50 @@ app.post("/api/submissions", upload.single("file"), async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Submission failed" });
+  }
+});
+
+/* ---------- ADMIN ROUTES ---------- */
+
+// Get all submissions
+app.get("/api/submissions", async (req, res) => {
+  try {
+    const submissions = await Submission.find().sort({ submittedAt: -1 });
+    res.json(submissions);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch submissions" });
+  }
+});
+
+// Get all tokens
+app.get("/api/tokens", async (req, res) => {
+  try {
+    const tokens = await Token.find().sort({ createdAt: -1 });
+    res.json(tokens);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch tokens" });
+  }
+});
+
+// Generate tokens
+app.post("/api/tokens/generate", async (req, res) => {
+  try {
+    const { amount } = req.body;
+    if (!amount || amount <= 0) return res.status(400).json({ message: "Invalid amount" });
+
+    const newTokens = [];
+    for (let i = 0; i < amount; i++) {
+      const tokenStr = `ICT-${Math.random().toString(36).substr(2, 8).toUpperCase()}`;
+      const tokenDoc = await Token.create({ token: tokenStr });
+      newTokens.push(tokenDoc);
+    }
+
+    res.json(newTokens);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Token generation failed" });
   }
 });
 
