@@ -160,130 +160,113 @@
 </section>
 
 <script>
-  const API_BASE = "https://assignment-pd4v.onrender.com/api";
+const API_BASE = "https://assignment-pd4v.onrender.com/api";
 
-  /* ---------- TAB SWITCH ---------- */
-  const tabs = document.querySelectorAll(".tab-btn");
-  const sections = document.querySelectorAll(".section");
-  tabs.forEach(tab => {
-    tab.addEventListener("click", () => {
-      tabs.forEach(t => t.classList.remove("active"));
-      tab.classList.add("active");
-      const tabName = tab.dataset.tab;
-      sections.forEach(sec => sec.classList.remove("active"));
-      document.getElementById(tabName).classList.add("active");
-    });
-  });
+const assignmentsBody = document.getElementById("assignmentsBody");
+const searchAssignments = document.getElementById("searchAssignments");
+const filterDepartment = document.getElementById("filterDepartment");
 
-  /* ---------- FETCH ASSIGNMENTS ---------- */
-  const assignmentsBody = document.getElementById("assignmentsBody");
-  const searchAssignments = document.getElementById("searchAssignments");
-  const filterDepartment = document.getElementById("filterDepartment");
+let allAssignments = [];
 
-  async function fetchAssignments() {
-    try {
-      const res = await fetch(`${API_BASE}/submissions`);
-      const data = await res.json();
-      renderAssignments(data);
-    } catch (err) {
-      console.error(err);
+/* ===============================
+   FETCH ASSIGNMENTS
+   =============================== */
+async function fetchAssignments() {
+  try {
+    const res = await fetch(`${API_BASE}/assignments`);
+
+    if (!res.ok) {
+      throw new Error("Failed to fetch assignments");
     }
-  }
 
+    const data = await res.json();
+    allAssignments = data;
+    renderAssignments(allAssignments);
+  } catch (err) {
+    console.error(err);
+    assignmentsBody.innerHTML = `
+      <tr>
+        <td colspan="9" style="text-align:center;color:red;">
+          Failed to load assignments
+        </td>
+      </tr>
+    `;
+  }
+}
+
+/* ===============================
+   RENDER TABLE
+   =============================== */
 function renderAssignments(assignments) {
   const searchTerm = searchAssignments.value.toLowerCase();
   const deptFilter = filterDepartment.value;
+
   assignmentsBody.innerHTML = "";
-  assignments
-    .filter(a => (!deptFilter || a.department === deptFilter) &&
-                 (!searchTerm || a.name.toLowerCase().includes(searchTerm) || a.email.toLowerCase().includes(searchTerm)))
-    .forEach(a => {
-      const tr = document.createElement("tr");
 
-      // Extract extension from original filename
-      const ext = a.fileName.includes(".") ? a.fileName.substring(a.fileName.lastIndexOf(".")) : "";
-      
-      // Ensure download URL includes extension
-      const downloadUrl = a.fileUrl.endsWith(ext) ? a.fileUrl : `${a.fileUrl}${ext}`;
+  const filtered = assignments.filter(a =>
+    (!deptFilter || a.department === deptFilter) &&
+    (
+      !searchTerm ||
+      a.name.toLowerCase().includes(searchTerm) ||
+      a.email.toLowerCase().includes(searchTerm) ||
+      a.course.toLowerCase().includes(searchTerm)
+    )
+  );
 
-      tr.innerHTML = `
-        <td>${a.name}</td>
-        <td>${a.department}</td>
-        <td>${a.course}</td>
-        <td>${a.phone}</td>
-        <td>${a.email}</td>
-        <td>
-  <a href="${a.fileUrl}" download="${a.fileName}">
-    Download
-  </a>
-</td>
-        <td>${a.token}</td>
-        <td>${new Date(a.submittedAt).toLocaleString()}</td>
-      `;
-      assignmentsBody.appendChild(tr);
-    });
+  if (filtered.length === 0) {
+    assignmentsBody.innerHTML = `
+      <tr>
+        <td colspan="9" style="text-align:center;">
+          No assignments found
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  filtered.forEach(a => {
+    const tr = document.createElement("tr");
+
+    // ✅ FORCE CLOUDINARY DOWNLOAD (FIXES 404 & UNSUPPORTED FORMAT)
+    const downloadUrl = a.fileUrl.replace(
+      "/upload/",
+      "/upload/fl_attachment/"
+    );
+
+    tr.innerHTML = `
+      <td>${a.name}</td>
+      <td>${a.department}</td>
+      <td>${a.course}</td>
+      <td>${a.phone}</td>
+      <td>${a.email}</td>
+      <td>
+        <a href="${downloadUrl}" download="${a.fileName}">
+          Download
+        </a>
+      </td>
+      <td>${a.token}</td>
+      <td>${new Date(a.submittedAt).toLocaleString()}</td>
+    `;
+
+    assignmentsBody.appendChild(tr);
+  });
 }
 
-  searchAssignments.addEventListener("input", fetchAssignments);
-  filterDepartment.addEventListener("change", fetchAssignments);
+/* ===============================
+   SEARCH & FILTER
+   =============================== */
+searchAssignments.addEventListener("input", () =>
+  renderAssignments(allAssignments)
+);
 
-  fetchAssignments();
+filterDepartment.addEventListener("change", () =>
+  renderAssignments(allAssignments)
+);
 
-  /* ---------- TOKEN SECTION ---------- */
-  const tokenList = document.getElementById("tokenList");
-  const tokenAmount = document.getElementById("tokenAmount");
-  const generateTokensBtn = document.getElementById("generateTokens");
-  const searchTokens = document.getElementById("searchTokens");
-  const filterStatus = document.getElementById("filterStatus");
-
-  async function fetchTokens() {
-    try {
-      const res = await fetch(`${API_BASE}/tokens`);
-      const data = await res.json();
-      renderTokens(data);
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  function renderTokens(tokens) {
-    const searchTerm = searchTokens.value.toLowerCase();
-    const statusFilter = filterStatus.value;
-    tokenList.innerHTML = "";
-    tokens
-      .filter(t => (!statusFilter || (t.used ? "used" : "unused") === statusFilter) &&
-                   (!searchTerm || t.token.toLowerCase().includes(searchTerm)))
-      .forEach(t => {
-        const div = document.createElement("div");
-        div.classList.add("token-item");
-        div.innerHTML = `
-          <span>${t.token}</span>
-          <span class="token-status ${t.used ? "used" : "unused"}">${t.used ? "Used" : "Unused"}</span>
-        `;
-        tokenList.appendChild(div);
-      });
-  }
-
-  generateTokensBtn.addEventListener("click", async () => {
-    const amount = parseInt(tokenAmount.value);
-    if (!amount || amount <= 0) return alert("Enter a valid amount");
-    try {
-      await fetch(`${API_BASE}/tokens/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount })
-      });
-      tokenAmount.value = "";
-      fetchTokens();
-    } catch (err) {
-      console.error(err);
-    }
-  });
-
-  searchTokens.addEventListener("input", fetchTokens);
-  filterStatus.addEventListener("change", fetchTokens);
-
-  fetchTokens();
+/* ===============================
+   INIT
+   =============================== */
+fetchAssignments();
 </script>
 
 </body>
