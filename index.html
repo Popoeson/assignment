@@ -243,71 +243,76 @@
   </div>
 
   <script>
-    const BACKEND_URL = "https://assignment-pd4v.onrender.com";
+const BACKEND_URL = "https://assignment-pd4v.onrender.com";
 
-    const form = document.getElementById("assignmentForm");
-    const modal = document.getElementById("tokenModal");
-    const cancelBtn = document.getElementById("cancelBtn");
-    const proceedBtn = document.getElementById("proceedBtn");
-    const message = document.getElementById("message");
-    const tokenInput = document.getElementById("tokenInput");
+const form = document.getElementById("assignmentForm");
+const modal = document.getElementById("tokenModal");
+const cancelBtn = document.getElementById("cancelBtn");
+const proceedBtn = document.getElementById("proceedBtn");
+const message = document.getElementById("message");
+const tokenInput = document.getElementById("tokenInput");
 
-    let formDataCache;
+let formDataCache;
 
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      message.textContent = "";
-      formDataCache = new FormData(form);
-      modal.style.display = "flex";
+// Submit button triggers token modal
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  message.textContent = "";
+  formDataCache = new FormData(form);
+  modal.style.display = "flex";
+});
+
+// Cancel token entry
+cancelBtn.addEventListener("click", () => {
+  modal.style.display = "none";
+  tokenInput.value = "";
+});
+
+// Proceed with token validation and submission
+proceedBtn.addEventListener("click", async () => {
+  const token = tokenInput.value.trim();
+  if (!token) return alert("Please enter a token");
+
+  proceedBtn.disabled = true;
+  proceedBtn.textContent = "Validating...";
+
+  try {
+    // 1️⃣ Validate token
+    const tokenRes = await fetch(`${BACKEND_URL}/api/tokens/validate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token })
     });
 
-    cancelBtn.addEventListener("click", () => {
-      modal.style.display = "none";
-      tokenInput.value = "";
+    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok) throw new Error(tokenData.message);
+
+    formDataCache.append("token", token);
+
+    // 2️⃣ Submit assignment to backend
+    const submitRes = await fetch(`${BACKEND_URL}/api/submissions`, {
+      method: "POST",
+      body: formDataCache
     });
 
-    proceedBtn.addEventListener("click", async () => {
-      const token = tokenInput.value.trim();
-      if (!token) return alert("Please enter a token");
+    const submitData = await submitRes.json();
+    if (!submitRes.ok) throw new Error(submitData.message);
 
-      proceedBtn.disabled = true;
-      proceedBtn.textContent = "Validating...";
+    modal.style.display = "none";
+    form.reset();
+    tokenInput.value = "";
 
-      try {
-        const tokenRes = await fetch(`${BACKEND_URL}/api/tokens/validate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token })
-        });
+    message.textContent = "Assignment submitted successfully.";
+    message.className = "message success";
 
-        const tokenData = await tokenRes.json();
-        if (!tokenRes.ok) throw new Error(tokenData.message);
-
-        formDataCache.append("token", token);
-
-        const submitRes = await fetch(`${BACKEND_URL}/api/submissions`, {
-          method: "POST",
-          body: formDataCache
-        });
-
-        const submitData = await submitRes.json();
-        if (!submitRes.ok) throw new Error(submitData.message);
-
-        modal.style.display = "none";
-        form.reset();
-        tokenInput.value = "";
-
-        message.textContent = "Assignment submitted successfully.";
-        message.className = "message success";
-
-      } catch (err) {
-        message.textContent = err.message || "Submission failed.";
-        message.className = "message error";
-      } finally {
-        proceedBtn.disabled = false;
-        proceedBtn.textContent = "Proceed";
-      }
-    });
-  </script>
+  } catch (err) {
+    message.textContent = err.message || "Submission failed.";
+    message.className = "message error";
+  } finally {
+    proceedBtn.disabled = false;
+    proceedBtn.textContent = "Proceed";
+  }
+});
+</script>
 </body>
 </html>
