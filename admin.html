@@ -143,6 +143,14 @@
 <script>
 const API_BASE = "https://assignment-pd4v.onrender.com/api";
 
+/* ---------- CLOUDINARY DOWNLOAD FIX ---------- */
+function cloudinaryDownload(url) {
+  return url.replace(
+    /\/upload\/v(\d+)\//,
+    "/upload/fl_attachment/v$1/"
+  );
+}
+
 /* ---------- TABS ---------- */
 document.querySelectorAll(".tab-btn").forEach(btn => {
   btn.onclick = () => {
@@ -175,7 +183,7 @@ function renderAssignments(assignments) {
       (!search || a.name.toLowerCase().includes(search) || a.email.toLowerCase().includes(search))
     )
     .forEach(a => {
-      const downloadUrl = a.fileUrl.replace("/upload/", "/upload/fl_attachment/");
+      const downloadUrl = cloudinaryDownload(a.fileUrl);
 
       assignmentsBody.innerHTML += `
         <tr>
