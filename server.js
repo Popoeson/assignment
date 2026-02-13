@@ -75,19 +75,26 @@ app.post("/api/tokens/validate", async (req, res) => {
   }
 });
 
-// Submit Assignment
+/* ---------- SUBMIT ASSIGNMENT ---------- */
 app.post("/api/submissions", upload.single("file"), async (req, res) => {
   try {
     const { name, department, course, phone, email, token } = req.body;
+
     if (!req.file) return res.status(400).json({ message: "File is required" });
 
     const tokenDoc = await Token.findOne({ token });
     if (!tokenDoc || tokenDoc.used) return res.status(400).json({ message: "Invalid or used token" });
 
-    // Upload file to Cloudinary (RAW)
+    /* Upload file to Cloudinary (RAW) with original filename and extension */
     const uploadResult = await new Promise((resolve, reject) => {
       cloudinary.uploader.upload_stream(
-        { resource_type: "raw", folder: "assignments" },
+        {
+          resource_type: "raw",
+          folder: "assignments",
+          use_filename: true,       // preserves original file name
+          unique_filename: false,   // avoids random renaming
+          overwrite: false
+        },
         (error, result) => {
           if (error) reject(error);
           else resolve(result);
@@ -95,19 +102,19 @@ app.post("/api/submissions", upload.single("file"), async (req, res) => {
       ).end(req.file.buffer);
     });
 
-    // Save submission
+    /* Save submission */
     await Submission.create({
       name,
       department,
       course,
       phone,
       email,
-      fileUrl: uploadResult.secure_url,
+      fileUrl: uploadResult.secure_url, // now includes filename + extension
       fileName: req.file.originalname,
       token
     });
 
-    // Mark token as used
+    /* Mark token as used */
     tokenDoc.used = true;
     await tokenDoc.save();
 
