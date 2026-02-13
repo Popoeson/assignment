@@ -37,7 +37,7 @@ const submissionSchema = new mongoose.Schema({
   course: String,
   phone: String,
   email: String,
-  fileUrl: String,
+  fileUrl: String,       // saved as direct-download link
   fileName: String,
   token: String,
   submittedAt: { type: Date, default: Date.now }
@@ -80,7 +80,9 @@ app.post("/api/submissions", upload.single("file"), async (req, res) => {
     const tokenDoc = await Token.findOne({ token });
     if (!tokenDoc || tokenDoc.used) return res.status(400).json({ message: "Invalid or used token" });
 
-    // Upload file to Cloudinary as raw
+    const ext = path.extname(req.file.originalname);
+
+    // Upload file to Cloudinary with raw_convert to generate direct-download link
     const uploadResult = await new Promise((resolve, reject) => {
       cloudinary.uploader.upload_stream(
         {
@@ -89,6 +91,8 @@ app.post("/api/submissions", upload.single("file"), async (req, res) => {
           use_filename: true,
           unique_filename: false,
           overwrite: false,
+          raw_convert: "attachment",           // ✅ ensures browser download
+          filename_override: path.basename(req.file.originalname, ext)
         },
         (error, result) => {
           if (error) reject(error);
@@ -97,12 +101,7 @@ app.post("/api/submissions", upload.single("file"), async (req, res) => {
       ).end(req.file.buffer);
     });
 
-    // Build direct download URL using fl_attachment
-    let fileUrl = uploadResult.secure_url;
-
-    // Cloudinary fl_attachment version for direct download
-    // If the URL already contains /upload/, insert /fl_attachment/ after it
-    fileUrl = fileUrl.replace("/upload/", "/upload/fl_attachment/");
+    const fileUrl = uploadResult.secure_url; // direct-download URL
 
     // Save submission
     await Submission.create({
