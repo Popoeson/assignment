@@ -190,7 +190,7 @@
     }
   }
 
-  function renderAssignments(assignments) {
+function renderAssignments(assignments) {
   const searchTerm = searchAssignments.value.toLowerCase();
   const deptFilter = filterDepartment.value;
   assignmentsBody.innerHTML = "";
@@ -199,6 +199,13 @@
                  (!searchTerm || a.name.toLowerCase().includes(searchTerm) || a.email.toLowerCase().includes(searchTerm)))
     .forEach(a => {
       const tr = document.createElement("tr");
+
+      // Extract extension from original filename
+      const ext = a.fileName.includes(".") ? a.fileName.substring(a.fileName.lastIndexOf(".")) : "";
+      
+      // Ensure download URL includes extension
+      const downloadUrl = a.fileUrl.endsWith(ext) ? a.fileUrl : `${a.fileUrl}${ext}`;
+
       tr.innerHTML = `
         <td>${a.name}</td>
         <td>${a.department}</td>
@@ -206,7 +213,7 @@
         <td>${a.phone}</td>
         <td>${a.email}</td>
         <td>
-          <a href="${a.fileUrl}?dl=1" download="${a.fileName}">
+          <a href="${downloadUrl}" download="${a.fileName}">
             Download
           </a>
         </td>
