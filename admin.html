@@ -213,10 +213,10 @@ function renderAssignments(assignments) {
         <td>${a.phone}</td>
         <td>${a.email}</td>
         <td>
-          <a href="${downloadUrl}" download="${a.fileName}">
-            Download
-          </a>
-        </td>
+  <a href="${a.fileUrl}" download="${a.fileName}">
+    Download
+  </a>
+</td>
         <td>${a.token}</td>
         <td>${new Date(a.submittedAt).toLocaleString()}</td>
       `;
