@@ -35,6 +35,7 @@
     .container {
       max-width: 650px; margin: 40px auto; background: #fff;
       padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      position: relative;
     }
     .form-group { margin-bottom: 18px; }
     label { display: block; margin-bottom: 6px; font-weight: 500; }
@@ -46,7 +47,9 @@
     .submit-btn {
       width: 100%; padding: 14px; background: #c7b89b;
       border: none; border-radius: 30px; font-size: 16px; cursor: pointer;
+      transition: background 0.3s;
     }
+    .submit-btn:disabled { background: #aaa; cursor: not-allowed; }
 
     .hidden { display: none; }
 
@@ -59,9 +62,20 @@
       margin-bottom: 15px;
     }
 
-    .message { text-align: center; margin-top: 15px; }
-    .success { color: #2e7d32; }
-    .error { color: #c0392b; }
+    .message { 
+      text-align: center; 
+      margin-top: 15px; 
+      font-weight: 600; 
+      padding: 12px; 
+      border-radius: 8px;
+      background: rgba(199, 184, 155, 0.1);
+      color: #2e7d32;
+      transition: all 0.3s;
+    }
+    .message.error { 
+      background: rgba(192, 57, 43, 0.1); 
+      color: #c0392b;
+    }
 
     /* ---------- MODAL ---------- */
     .modal {
@@ -79,6 +93,29 @@
     }
     .cancel-btn { background: #ccc; }
     .proceed-btn { background: #c7b89b; }
+
+    /* ---------- SPINNER OVERLAY ---------- */
+    #overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      z-index: 999;
+      justify-content: center;
+      align-items: center;
+    }
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #c7b89b;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -172,6 +209,11 @@
   </div>
 </div>
 
+<!-- SPINNER OVERLAY -->
+<div id="overlay" class="hidden">
+  <div class="spinner"></div>
+</div>
+
 <script>
 const BACKEND_URL = "https://assignment-pd4v.onrender.com";
 const hasToken = document.getElementById("hasToken");
@@ -183,6 +225,7 @@ const payBtn = document.getElementById("payBtn");
 const submitBtn = document.getElementById("submitBtn");
 const form = document.getElementById("assignmentForm");
 const message = document.getElementById("message");
+const overlay = document.getElementById("overlay");
 
 let paid = false;
 let cachedFormData;
@@ -237,25 +280,41 @@ document.getElementById("cancelBtn").onclick = () => {
 
 document.getElementById("proceedBtn").onclick = async () => {
   const token = document.getElementById("tokenInput").value.trim();
+  if (!token) return;
   cachedFormData.append("token", token);
 
-  const res = await fetch(`${BACKEND_URL}/api/submissions`, {
-    method: "POST",
-    body: cachedFormData
-  });
+  // Show overlay & disable form
+  overlay.style.display = "flex";
+  submitBtn.disabled = true;
+  Array.from(form.elements).forEach(el => el.disabled = true);
 
-  const data = await res.json();
-  if (!res.ok) {
-    message.textContent = data.message;
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/submissions`, {
+      method: "POST",
+      body: cachedFormData
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      message.textContent = data.message;
+      message.className = "message error";
+      return;
+    }
+
+    message.textContent = `✅ Submission successful! Your score: ${data.score}/20`;
+    message.className = "message success";
+    form.reset();
+    document.getElementById("tokenModal").style.display = "none";
+
+  } catch (err) {
+    message.textContent = "❌ Submission failed. Please try again.";
     message.className = "message error";
-    return;
+  } finally {
+    overlay.style.display = "none";
+    Array.from(form.elements).forEach(el => el.disabled = false);
+    submitBtn.disabled = hasToken.value === "no";
   }
-
-  const score = Math.floor(Math.random() * (19 - 13 + 1)) + 13;
-  message.textContent = `Submission successful. Your score: ${score}/20`;
-  message.className = "message success";
-  form.reset();
-  document.getElementById("tokenModal").style.display = "none";
 };
 </script>
 
