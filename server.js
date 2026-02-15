@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const multer = require("multer");
 const cloudinary = require("cloudinary").v2;
-const path = require("path");
+const axios = require("axios");
 
 const app = express();
 
@@ -19,7 +19,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-/* ---------- MONGODB CONNECTION ---------- */
+/* ---------- DB CONNECTION ---------- */
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB connected"))
   .catch(err => console.error("❌ MongoDB error:", err));
@@ -37,8 +37,19 @@ const submissionSchema = new mongoose.Schema({
   course: String,
   phone: String,
   email: String,
-  fileUrl: String,       // saved as direct-download link
-  fileName: String,
+
+  files: [
+    {
+      fileUrl: String,
+      fileName: String
+    }
+  ],
+
+  fileCount: Number,
+  amountPaid: Number,
+  paymentRef: String,
+  score: Number,
+
   token: String,
   submittedAt: { type: Date, default: Date.now }
 });
@@ -46,138 +57,141 @@ const submissionSchema = new mongoose.Schema({
 const Token = mongoose.model("Token", tokenSchema);
 const Submission = mongoose.model("Submission", submissionSchema);
 
-/* ---------- MULTER SETUP ---------- */
-const storage = multer.memoryStorage();
+/* ---------- MULTER ---------- */
 const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB per file
 });
 
-/* ---------- STUDENT ROUTES ---------- */
-
-// Validate token
+/* ---------- TOKEN VALIDATION ---------- */
 app.post("/api/tokens/validate", async (req, res) => {
+  const { token } = req.body;
+  const found = await Token.findOne({ token });
+  if (!found) return res.status(400).json({ message: "Invalid token" });
+  if (found.used) return res.status(400).json({ message: "Token already used" });
+  res.json({ message: "Token valid" });
+});
+
+/* ---------- PAYSTACK VERIFY ---------- */
+app.post("/api/payment/verify", async (req, res) => {
   try {
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ message: "Token is required" });
+    const { reference, expectedAmount } = req.body;
 
-    const existingToken = await Token.findOne({ token });
-    if (!existingToken) return res.status(400).json({ message: "Invalid token" });
-    if (existingToken.used) return res.status(400).json({ message: "Token already used" });
+    const response = await axios.get(
+      `https://api.paystack.co/transaction/verify/${reference}`,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`
+        }
+      }
+    );
 
-    res.json({ message: "Token valid" });
+    const data = response.data.data;
+
+    if (data.status !== "success")
+      return res.status(400).json({ message: "Payment not successful" });
+
+    if (data.amount !== expectedAmount * 100)
+      return res.status(400).json({ message: "Amount mismatch" });
+
+    res.json({ verified: true });
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Payment verification failed" });
   }
 });
 
-// Submit assignment
-app.post("/api/submissions", upload.single("file"), async (req, res) => {
+/* ---------- SUBMISSION ---------- */
+app.post("/api/submissions", upload.array("files", 5), async (req, res) => {
   try {
-    const { name, department, course, phone, email, token } = req.body;
+    const { name, department, course, phone, email, token, paymentRef } = req.body;
 
-    if (!req.file) return res.status(400).json({ message: "File is required" });
-    if (!name || !department || !course || !phone || !email)
-      return res.status(400).json({ message: "All fields are required" });
+    if (!req.files || req.files.length === 0)
+      return res.status(400).json({ message: "No files uploaded" });
 
     const tokenDoc = await Token.findOne({ token });
     if (!tokenDoc || tokenDoc.used)
       return res.status(400).json({ message: "Invalid or used token" });
 
-    // Upload file to Cloudinary as raw
-    const uploadResult = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        {
-          resource_type: "raw",
-          folder: "assignments",
-          use_filename: true,
-          unique_filename: false,
-          overwrite: false,
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      ).end(req.file.buffer);
-    });
+    const fileCount = req.files.length;
+    const amountPaid = fileCount * 200;
 
-    // Convert to direct-download URL
-    const fileUrl = uploadResult.secure_url.replace("/upload/", "/upload/fl_attachment/");
+    /* Upload all files */
+    const uploadedFiles = [];
 
-    // Save submission
+    for (const file of req.files) {
+      const uploadResult = await new Promise((resolve, reject) => {
+        cloudinary.uploader.upload_stream(
+          {
+            resource_type: "raw",
+            folder: "assignments",
+            use_filename: true,
+            unique_filename: true
+          },
+          (err, result) => (err ? reject(err) : resolve(result))
+        ).end(file.buffer);
+      });
+
+      uploadedFiles.push({
+        fileUrl: uploadResult.secure_url,
+        fileName: file.originalname
+      });
+    }
+
+    const score = Math.floor(Math.random() * (19 - 13 + 1)) + 13;
+
     await Submission.create({
       name,
       department,
       course,
       phone,
       email,
-      fileUrl,
-      fileName: req.file.originalname,
-      token,
+      files: uploadedFiles,
+      fileCount,
+      amountPaid,
+      paymentRef,
+      score,
+      token
     });
 
-    // Mark token as used
     tokenDoc.used = true;
     await tokenDoc.save();
 
-    res.json({ message: "Assignment submitted successfully", fileUrl });
+    res.json({
+      message: "Submission successful",
+      score
+    });
+
   } catch (err) {
-    console.error("Submission error:", err);
+    console.error(err);
     res.status(500).json({ message: "Submission failed" });
   }
 });
 
-/* ---------- ADMIN ROUTES ---------- */
-
-// Get all submissions
-app.get("/api/submissions", async (req, res) => {
-  try {
-    const submissions = await Submission.find().sort({ submittedAt: -1 });
-    res.json(submissions);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Failed to fetch submissions" });
-  }
+/* ---------- ADMIN ---------- */
+app.get("/api/submissions", async (_, res) => {
+  const submissions = await Submission.find().sort({ submittedAt: -1 });
+  res.json(submissions);
 });
 
-// Get all tokens
-app.get("/api/tokens", async (req, res) => {
-  try {
-    const tokens = await Token.find().sort({ createdAt: -1 });
-    res.json(tokens);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Failed to fetch tokens" });
-  }
+/* ---------- TOKENS ---------- */
+app.get("/api/tokens", async (_, res) => {
+  res.json(await Token.find().sort({ createdAt: -1 }));
 });
 
-// Generate tokens
 app.post("/api/tokens/generate", async (req, res) => {
-  try {
-    const { amount } = req.body;
-    if (!amount || amount <= 0) return res.status(400).json({ message: "Invalid amount" });
+  const { amount } = req.body;
+  const tokens = [];
 
-    const newTokens = [];
-    for (let i = 0; i < amount; i++) {
-      const tokenStr = `ICT-${Math.random().toString(36).substr(2, 8).toUpperCase()}`;
-      const tokenDoc = await Token.create({ token: tokenStr });
-      newTokens.push(tokenDoc);
-    }
-
-    res.json(newTokens);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Token generation failed" });
+  for (let i = 0; i < amount; i++) {
+    tokens.push(await Token.create({
+      token: `ICT-${Math.random().toString(36).substr(2, 8).toUpperCase()}`
+    }));
   }
-});
 
-/* ---------- HEALTH CHECK ---------- */
-app.get("/", (req, res) => {
-  res.send("Assignment Submission API running");
+  res.json(tokens);
 });
 
 /* ---------- SERVER ---------- */
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+app.listen(process.env.PORT || 5000, () =>
+  console.log("🚀 Server running")
+);
