@@ -95,15 +95,17 @@
     .proceed-btn { background: #c7b89b; }
 
     /* ---------- SPINNER OVERLAY ---------- */
-    #overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.35);
-      z-index: 999;
-      justify-content: center;
-      align-items: center;
-    }
+#overlay {
+  display: flex; /* initially flex to center spinner */
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 999;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+   
     .spinner {
       width: 60px;
       height: 60px;
@@ -208,13 +210,28 @@
   </div>
 </div>
 
-<!-- SPINNER OVERLAY -->
+<!-- SPINNER OVERLAY (update to include page-load spinner) -->
+<div id="overlay">
+  <div class="spinner"></div>
+  <div id="overlayText" style="margin-top:15px; color:#fff; font-size:16px;">Loading...</div>
+</div>
+<!-- SPINNER OVERLAY 
 <div id="overlay" class="hidden">
   <div class="spinner"></div>
-</div>
+</div> -->
 
 <script>
 const BACKEND_URL = "https://assignment-pd4v.onrender.com";
+
+// Page load overlay
+window.addEventListener("load", () => {
+  // Hide overlay after a tiny delay to allow DOM setup
+  setTimeout(() => {
+    overlay.style.display = "none";
+  }, 500); 
+});
+
+// Submission overlay remains as you already coded
 const hasToken = document.getElementById("hasToken");
 const fileCount = document.getElementById("fileCount");
 const fileInputs = document.getElementById("fileInputs");
