@@ -266,6 +266,14 @@ let cachedFormData = null;
 // ---------- PAYMENT BOX VISIBILITY ----------
 hasToken.addEventListener("change", () => {
   paymentBox.classList.toggle("hidden", hasToken.value === "yes");
+
+  // Reset payment status when switching options
+  if (hasToken.value === "yes") {
+    paid = true; // student has token → submit can be enabled
+  } else {
+    paid = false; // needs payment → submit disabled until paid
+  }
+
   submitBtn.disabled = hasToken.value !== "yes" || !paid;
 });
 
