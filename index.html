@@ -267,18 +267,51 @@ fileCount.addEventListener("change", () => {
   submitBtn.disabled = hasToken.value !== "yes";
 });
 
-payBtn.onclick = () => {
+payBtn.onclick = async () => {
   const amount = Number(totalAmount.textContent) * 100;
+
   PaystackPop.setup({
     key: "pk_test_72e7641a30dcdbad32a51606354065cc5b62f20f",
     email: form.email.value,
     amount,
-    callback() {
-      paid = true;
-      paymentBox.classList.add("hidden");
-      submitBtn.disabled = false;
-      message.textContent = "Payment successful. Please obtain your token from admin.";
-      message.className = "message success";
+    callback: async function(response) {
+      // response.reference contains the Paystack transaction reference
+      const reference = response.reference;
+      const name = form.name.value;
+      const email = form.email.value;
+      const expectedAmount = Number(totalAmount.textContent);
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/payment/verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reference, expectedAmount, name, email })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          message.textContent = data.message || "Payment verification failed";
+          message.className = "message error";
+          return;
+        }
+
+        paid = true;
+        paymentBox.classList.add("hidden");
+        submitBtn.disabled = false;
+        message.textContent = "✅ Payment successful! You can now submit your assignment.";
+        message.className = "message success";
+
+      } catch (err) {
+        console.error(err);
+        message.textContent = "❌ Payment verification failed. Try again.";
+        message.className = "message error";
+      }
+    },
+    onClose: function() {
+      if (!paid) {
+        message.textContent = "Payment not completed.";
+        message.className = "message error";
+      }
     }
   }).openIframe();
 };
