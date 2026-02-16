@@ -223,15 +223,31 @@
  <script>
 const BACKEND_URL = "https://assignment-pd4v.onrender.com";
 
-// Page load overlay
+// ---------- PAGE LOAD & SERVER CHECK ----------
 const overlay = document.getElementById("overlay");
-window.addEventListener("load", () => {
-  setTimeout(() => {
-    overlay.style.display = "none";
-  }, 500); 
-});
+const message = document.getElementById("message");
 
-// Form & UI elements
+async function waitForServer() {
+  overlay.style.display = "flex";
+  message.textContent = "⏳ Waiting for server to start...";
+  message.className = "message";
+  let serverUp = false;
+
+  while (!serverUp) {
+    try {
+      const res = await fetch(`${BACKEND_URL}/`);
+      if (res.ok) serverUp = true;
+    } catch (err) {
+      console.warn("Server not ready, retrying...");
+    }
+    if (!serverUp) await new Promise(r => setTimeout(r, 2000)); // retry every 2s
+  }
+
+  overlay.style.display = "none";
+}
+waitForServer();
+
+// ---------- FORM & UI ELEMENTS ----------
 const hasToken = document.getElementById("hasToken");
 const fileCount = document.getElementById("fileCount");
 const fileInputs = document.getElementById("fileInputs");
@@ -240,20 +256,18 @@ const totalAmount = document.getElementById("totalAmount");
 const payBtn = document.getElementById("payBtn");
 const submitBtn = document.getElementById("submitBtn");
 const form = document.getElementById("assignmentForm");
-const message = document.getElementById("message");
 
-// State
 let paid = false;
 let paymentReference = null;
 let cachedFormData = null;
 
-// Show/hide payment box
+// ---------- PAYMENT BOX VISIBILITY ----------
 hasToken.addEventListener("change", () => {
   paymentBox.classList.toggle("hidden", hasToken.value === "yes");
   submitBtn.disabled = hasToken.value !== "yes" || !paid;
 });
 
-// Generate file inputs dynamically
+// ---------- DYNAMIC FILE INPUTS ----------
 fileCount.addEventListener("change", () => {
   fileInputs.innerHTML = "";
   const count = Number(fileCount.value);
@@ -271,48 +285,50 @@ fileCount.addEventListener("change", () => {
   submitBtn.disabled = hasToken.value !== "yes" || !paid;
 });
 
-// Paystack payment
+// ---------- PAYSTACK PAYMENT ----------
 payBtn.onclick = function() {
   const amount = Number(totalAmount.textContent) * 100;
 
   PaystackPop.setup({
-    key: "pk_test_72e7641a30dcdbad32a51606354065cc5b62f20f", // make sure no invisible chars
+    key: "pk_test_72e7641a30dcdbad32a51606354065cc5b62f20f",
     email: form.email.value,
     amount,
-    callback: function(response) {
-      // response.reference contains the Paystack transaction reference
+    callback: async function(response) {
       const reference = response.reference;
       const name = form.name.value;
       const email = form.email.value;
       const expectedAmount = Number(totalAmount.textContent);
 
       // Verify payment on backend
-      fetch(`${BACKEND_URL}/api/payment/verify`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reference, expectedAmount, name, email })
-      })
-      .then(res => res.json().then(data => ({ ok: res.ok, data })))
-      .then(({ ok, data }) => {
-        if (!ok) {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/payment/verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reference, expectedAmount, name, email })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
           message.textContent = data.message || "Payment verification failed";
           message.className = "message error";
           paid = false;
           return;
         }
 
+        // Payment successful
         paid = true;
+        paymentReference = reference;
         paymentBox.classList.add("hidden");
         submitBtn.disabled = false;
         message.textContent = "✅ Payment successful! You can now submit your assignment.";
         message.className = "message success";
-      })
-      .catch(err => {
+
+      } catch (err) {
         console.error(err);
         paid = false;
         message.textContent = "❌ Payment verification failed. Try again.";
         message.className = "message error";
-      });
+      }
     },
     onClose: function() {
       if (!paid) {
@@ -323,7 +339,7 @@ payBtn.onclick = function() {
   }).openIframe();
 };
 
-// Submit form (opens token modal)
+// ---------- FORM SUBMISSION ----------
 form.addEventListener("submit", e => {
   e.preventDefault();
   if (!paid) {
@@ -335,12 +351,11 @@ form.addEventListener("submit", e => {
   document.getElementById("tokenModal").style.display = "flex";
 });
 
-// Token modal cancel
+// ---------- TOKEN MODAL ----------
 document.getElementById("cancelBtn").onclick = () => {
   document.getElementById("tokenModal").style.display = "none";
 };
 
-// Token modal proceed
 document.getElementById("proceedBtn").onclick = async () => {
   const token = document.getElementById("tokenInput").value.trim();
   if (!token) {
@@ -349,11 +364,9 @@ document.getElementById("proceedBtn").onclick = async () => {
     return;
   }
 
-  // Append token & payment reference
   cachedFormData.append("token", token);
   cachedFormData.append("paymentRef", paymentReference);
 
-  // Show overlay & disable form
   overlay.style.display = "flex";
   submitBtn.disabled = true;
   Array.from(form.elements).forEach(el => el.disabled = true);
@@ -363,7 +376,6 @@ document.getElementById("proceedBtn").onclick = async () => {
       method: "POST",
       body: cachedFormData
     });
-
     const data = await res.json();
 
     if (!res.ok) {
