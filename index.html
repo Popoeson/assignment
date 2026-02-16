@@ -220,17 +220,17 @@
   <div class="spinner"></div>
 </div> -->
 
- <script>
+ 
+<script>
 const BACKEND_URL = "https://assignment-pd4v.onrender.com";
 
 // ---------- PAGE LOAD & SERVER CHECK ----------
 const overlay = document.getElementById("overlay");
 const message = document.getElementById("message");
 
+// Keep overlay visible until backend responds, no message text
 async function waitForServer() {
   overlay.style.display = "flex";
-  message.textContent = "⏳ Waiting for server to start...";
-  message.className = "message";
   let serverUp = false;
 
   while (!serverUp) {
