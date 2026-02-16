@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Transactions - Assignment Portal</title>
+
+  <style>
+    * { box-sizing: border-box; font-family: sans-serif; }
+    body { background: #f5f3f0; color: #333; margin: 0; }
+
+    header {
+      background: linear-gradient(90deg, #d9d9d9, #f5f0e1);
+      padding: 1rem 2rem;
+      text-align: center;
+      border-bottom: 2px solid #ccc;
+    }
+
+    main {
+      padding: 1.5rem;
+      max-width: 1000px;
+      margin: auto;
+    }
+
+    .controls {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    input, select {
+      padding: 0.5rem 0.7rem;
+      border-radius: 6px;
+      border: 1px solid #aaa;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+    }
+
+    th, td {
+      padding: 0.7rem;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th { background: #e0ded7; }
+
+    .success { color: green; font-weight: bold; }
+    .failed { color: red; font-weight: bold; }
+
+    @media (max-width: 600px) {
+      table { font-size: 13px; }
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>Owu College of Management Technology</h1>
+  <h3>Payment Transactions</h3>
+</header>
+
+<main>
+
+  <div class="controls">
+    <input type="text" id="searchInput" placeholder="Search name or email">
+    <select id="statusFilter">
+      <option value="">All Status</option>
+      <option value="success">Success</option>
+      <option value="failed">Failed</option>
+    </select>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Amount (₦)</th>
+        <th>Status</th>
+        <th>Payment Time</th>
+      </tr>
+    </thead>
+    <tbody id="transactionBody"></tbody>
+  </table>
+
+</main>
+
+<script>
+const API_BASE = "https://assignment-pd4v.onrender.com/api";
+const body = document.getElementById("transactionBody");
+const searchInput = document.getElementById("searchInput");
+const statusFilter = document.getElementById("statusFilter");
+
+let transactions = [];
+
+async function fetchTransactions() {
+  try {
+    const res = await fetch(`${API_BASE}/transactions`);
+    transactions = await res.json();
+    renderTransactions();
+  } catch (err) {
+    console.error("Failed to load transactions", err);
+  }
+}
+
+function renderTransactions() {
+  const search = searchInput.value.toLowerCase();
+  const status = statusFilter.value;
+
+  body.innerHTML = "";
+
+  transactions
+    .filter(t =>
+      (!status || t.status === status) &&
+      (!search ||
+        t.name.toLowerCase().includes(search) ||
+        t.email.toLowerCase().includes(search))
+    )
+    .forEach(t => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${t.name}</td>
+        <td>${t.email}</td>
+        <td>${t.amount}</td>
+        <td class="${t.status === "success" ? "success" : "failed"}">
+          ${t.status}
+        </td>
+        <td>${new Date(t.paidAt).toLocaleString()}</td>
+      `;
+      body.appendChild(tr);
+    });
+}
+
+searchInput.oninput = renderTransactions;
+statusFilter.onchange = renderTransactions;
+
+fetchTransactions();
+</script>
+
+</body>
+</html>
