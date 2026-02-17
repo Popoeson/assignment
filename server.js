@@ -129,12 +129,14 @@ app.post("/api/submissions", upload.array("file", 5), async (req, res) => {
   try {
     const { name, department, course, phone, email, token, paymentRef } = req.body;
 
-    if (!req.files || req.files.length === 0)
+    if (!req.files || req.files.length === 0) {
       return res.status(400).json({ message: "No files uploaded" });
+    }
 
     const tokenDoc = await Token.findOne({ token });
-    if (!tokenDoc || tokenDoc.used)
+    if (!tokenDoc || tokenDoc.used) {
       return res.status(400).json({ message: "Invalid or used token" });
+    }
 
     const uploadedFiles = [];
 
@@ -142,14 +144,15 @@ app.post("/api/submissions", upload.array("file", 5), async (req, res) => {
       const uploadResult = await new Promise((resolve, reject) => {
         cloudinary.uploader.upload_stream(
           { resource_type: "raw", folder: "assignments", use_filename: true },
-          (err, result) => err ? reject(err) : resolve(result)
+          (err, result) => (err ? reject(err) : resolve(result))
         ).end(file.buffer);
       });
 
       uploadedFiles.push({
-  fileUrl: uploadResult.secure_url, // ← store clean URL
-  fileName: file.originalname
-});
+        fileUrl: uploadResult.secure_url, // ✅ clean Cloudinary URL
+        fileName: file.originalname
+      });
+    } // ✅ FOR LOOP CLOSED CORRECTLY
 
     const fileCount = uploadedFiles.length;
     const amountPaid = fileCount * 200;
