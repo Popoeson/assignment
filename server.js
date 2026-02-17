@@ -5,6 +5,8 @@ const cors = require("cors");
 const multer = require("multer");
 const cloudinary = require("cloudinary").v2;
 const axios = require("axios");
+const { Readable } = require("stream"); // Node.js stream
+
 
 const app = express();
 const { createClient } = require('@supabase/supabase-js');
@@ -147,30 +149,32 @@ app.post("/api/submissions", upload.array("file", 5), async (req, res) => {
     const uploadedFiles = [];
 
     for (const file of req.files) {
-      // upload to Supabase Storage
+      const filePath = `submissions/${Date.now()}_${file.originalname}`;
+
+      // convert buffer to stream
+      const fileStream = Readable.from(file.buffer);
+
+      // Supabase upload via stream
       const { data: uploadData, error: uploadError } = await supabase
         .storage
-        .from('assignments')
-        .upload(`submissions/${Date.now()}_${file.originalname}`, file.buffer, {
+        .from("assignments")
+        .upload(filePath, fileStream, {
           contentType: file.mimetype,
           upsert: false
         });
 
       if (uploadError) throw uploadError;
 
-      const filePath = uploadData?.path;
-      if (!filePath) throw new Error("Supabase upload path missing");
-
       // generate public URL
       const { data: publicData, error: urlError } = supabase
         .storage
-        .from('assignments')
+        .from("assignments")
         .getPublicUrl(filePath);
 
       if (urlError) throw urlError;
 
       uploadedFiles.push({
-        fileUrl: publicData.publicUrl, // <- this will now be saved
+        fileUrl: publicData.publicUrl,
         fileName: file.originalname
       });
     }
@@ -197,7 +201,6 @@ app.post("/api/submissions", upload.array("file", 5), async (req, res) => {
     await tokenDoc.save();
 
     res.json({ message: "Submission successful", score, submission });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Submission failed", error: err.message });
