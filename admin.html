@@ -198,6 +198,7 @@ const studentsContainer = document.getElementById("studentsContainer");
 const searchAssignments = document.getElementById("searchAssignments");
 const filterDepartment = document.getElementById("filterDepartment");
 
+/* ---------- FETCH SUBMISSIONS ---------- */
 async function fetchAssignments() {
   try {
     const res = await fetch(`${API_BASE}/submissions`);
@@ -205,68 +206,93 @@ async function fetchAssignments() {
     renderStudents(data);
   } catch (err) {
     console.error("Error fetching assignments:", err);
+    studentsContainer.innerHTML = "<p>Failed to load submissions</p>";
   }
 }
 
-/* Group submissions by first two words of name */
+/* ---------- RENDER STUDENTS ---------- */
 function renderStudents(submissions) {
-  const search = searchAssignments.value.toLowerCase();
+  const search = searchAssignments.value.toLowerCase().trim();
   const dept = filterDepartment.value;
 
-  const filtered = submissions.filter(a =>
-    (!dept || a.department === dept) &&
-    (!search || a.name.toLowerCase().includes(search) || a.email.toLowerCase().includes(search))
+  /* ---------- FILTER ---------- */
+  const filtered = submissions.filter(sub =>
+    (!dept || sub.department === dept) &&
+    (!search ||
+      sub.name.toLowerCase().includes(search) ||
+      sub.email.toLowerCase().includes(search))
   );
 
+  /* ---------- GROUP BY STUDENT ---------- */
   const grouped = {};
   filtered.forEach(sub => {
-    const key = sub.name.toLowerCase().split(" ").slice(0, 2).join(" ");
+    const key = sub.name
+      .toLowerCase()
+      .split(" ")
+      .slice(0, 2)
+      .join(" ");
+
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(sub);
   });
 
   studentsContainer.innerHTML = "";
 
+  if (Object.keys(grouped).length === 0) {
+    studentsContainer.innerHTML = "<p>No submissions found</p>";
+    return;
+  }
+
+  /* ---------- BUILD UI ---------- */
   Object.keys(grouped).forEach(key => {
     const subs = grouped[key];
-    const card = document.createElement("div");
-    card.classList.add("student-card");
 
+    const card = document.createElement("div");
+    card.className = "student-card";
+
+    /* ---------- HEADER ---------- */
     const header = document.createElement("div");
-    header.classList.add("student-header");
+    header.className = "student-header";
     header.innerHTML = `
       <h4>${subs[0].name}</h4>
-      <span>${subs[0].department} | ${subs.length} submission${subs.length>1?'s':''}</span>
+      <span>${subs[0].department} • ${subs.length} submission${subs.length > 1 ? "s" : ""}</span>
     `;
     card.appendChild(header);
 
+    /* ---------- BODY ---------- */
     const body = document.createElement("div");
-    body.classList.add("student-body");
+    body.className = "student-body";
+    body.style.display = "none";
 
-    let tableHTML = `<table>
-      <thead>
-        <tr>
-          <th>Course</th>
-          <th>Files</th>
-          <th>Token</th>
-          <th>Amount Paid</th>
-          <th>Score</th>
-          <th>Submitted At</th>
-        </tr>
-      </thead>
-      <tbody>`;
+    let tableHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Course</th>
+            <th>Files</th>
+            <th>Token</th>
+            <th>Amount</th>
+            <th>Score</th>
+            <th>Submitted</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
 
     subs.forEach(sub => {
-      let filesHTML = "";
-      if (sub.files && sub.files.length > 0) {
-        sub.files.forEach(f => {
-          // Direct Supabase link with download
-          filesHTML += `
-            <a href="${f.fileUrl}" class="file-link" download="${f.fileName}">
-              ${f.fileName}
-            </a>
-          `;
-        });
+      let filesHTML = `<span class="muted">No files</span>`;
+
+      if (Array.isArray(sub.files) && sub.files.length > 0) {
+        filesHTML = sub.files.map(file => `
+          <a 
+            href="${file.fileUrl}"
+            target="_blank"
+            download="${file.fileName}"
+            class="file-link"
+          >
+            📄 ${file.fileName}
+          </a>
+        `).join("<br>");
       }
 
       tableHTML += `
@@ -277,21 +303,32 @@ function renderStudents(submissions) {
           <td>₦${sub.amountPaid}</td>
           <td>${sub.score}</td>
           <td>${new Date(sub.submittedAt).toLocaleString()}</td>
-        </tr>`;
+        </tr>
+      `;
     });
 
-    tableHTML += "</tbody></table>";
+    tableHTML += `
+        </tbody>
+      </table>
+    `;
+
     body.innerHTML = tableHTML;
     card.appendChild(body);
 
-    header.onclick = () => body.style.display = body.style.display === "block" ? "none" : "block";
+    /* ---------- TOGGLE ---------- */
+    header.onclick = () => {
+      body.style.display = body.style.display === "none" ? "block" : "none";
+    };
 
     studentsContainer.appendChild(card);
   });
 }
 
-searchAssignments.oninput = fetchAssignments;
-filterDepartment.onchange = fetchAssignments;
+/* ---------- EVENTS ---------- */
+searchAssignments.addEventListener("input", fetchAssignments);
+filterDepartment.addEventListener("change", fetchAssignments);
+
+/* ---------- INIT ---------- */
 fetchAssignments();
 
 /* ---------- TOKENS ---------- */
