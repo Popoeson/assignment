@@ -183,6 +183,22 @@ app.post("/api/submissions", upload.array("file", 5), async (req, res) => {
   }
 });
 
+/* --------- DOWNLOAD FILE ---------;*/
+app.get("/api/download", async (req, res) => {
+  const { url, name } = req.query;
+
+  const response = await axios.get(url, {
+    responseType: "stream",
+  });
+
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${name}"`
+  );
+
+  response.data.pipe(res);
+});
+
 /* ---------- ADMIN ROUTES ---------- */
 app.get("/api/submissions", async (_, res) => {
   const submissions = await Submission.find().sort({ submittedAt: -1 });
