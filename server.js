@@ -133,6 +133,7 @@ app.post("/api/submissions", upload.array("file", 5), async (req, res) => {
       return res.status(400).json({ message: "No files uploaded" });
     }
 
+    /* ---------- TOKEN CHECK ---------- */
     const tokenDoc = await Token.findOne({ token });
     if (!tokenDoc || tokenDoc.used) {
       return res.status(400).json({ message: "Invalid or used token" });
@@ -140,30 +141,27 @@ app.post("/api/submissions", upload.array("file", 5), async (req, res) => {
 
     const uploadedFiles = [];
 
+    /* ---------- SUPABASE UPLOAD ---------- */
     for (const file of req.files) {
       const filePath = `submissions/${Date.now()}_${file.originalname}`;
 
-      // convert buffer to stream
-      const fileStream = Readable.from(file.buffer);
-
-      // Supabase upload via stream
-      const { data: uploadData, error: uploadError } = await supabase
+      const { error: uploadError } = await supabase
         .storage
         .from("assignments")
-        .upload(filePath, fileStream, {
+        .upload(filePath, file.buffer, {
           contentType: file.mimetype,
           upsert: false
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error("Supabase upload error:", uploadError);
+        throw uploadError;
+      }
 
-      // generate public URL
-      const { data: publicData, error: urlError } = supabase
+      const { data: publicData } = supabase
         .storage
         .from("assignments")
         .getPublicUrl(filePath);
-
-      if (urlError) throw urlError;
 
       uploadedFiles.push({
         fileUrl: publicData.publicUrl,
@@ -171,10 +169,12 @@ app.post("/api/submissions", upload.array("file", 5), async (req, res) => {
       });
     }
 
+    /* ---------- CALCULATIONS ---------- */
     const fileCount = uploadedFiles.length;
     const amountPaid = fileCount * 200;
     const score = Math.floor(Math.random() * 7) + 13;
 
+    /* ---------- SAVE SUBMISSION ---------- */
     const submission = await Submission.create({
       name,
       department,
@@ -189,30 +189,23 @@ app.post("/api/submissions", upload.array("file", 5), async (req, res) => {
       token
     });
 
+    /* ---------- MARK TOKEN USED ---------- */
     tokenDoc.used = true;
     await tokenDoc.save();
 
-    res.json({ message: "Submission successful", score, submission });
+    res.json({
+      message: "Submission successful",
+      score,
+      submission
+    });
+
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Submission failed", error: err.message });
+    res.status(500).json({
+      message: "Submission failed",
+      error: err.message
+    });
   }
-});
-
-/* --------- DOWNLOAD FILE ---------;*/
-app.get("/api/download", async (req, res) => {
-  const { url, name } = req.query;
-
-  const response = await axios.get(url, {
-    responseType: "stream",
-  });
-
-  res.setHeader(
-    "Content-Disposition",
-    `attachment; filename="${name}"`
-  );
-
-  response.data.pipe(res);
 });
 
 /* ---------- ADMIN ROUTES ---------- */
