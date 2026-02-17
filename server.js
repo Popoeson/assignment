@@ -7,10 +7,16 @@ const cloudinary = require("cloudinary").v2;
 const axios = require("axios");
 
 const app = express();
+const { createClient } = require('@supabase/supabase-js');
 
 /* ---------- MIDDLEWARE ---------- */
 app.use(cors());
 app.use(express.json());
+
+/* -------- SUPABASE SETUP -------*/
+const SUPABASE_URL = process.env.SUPABASE_URL; // your Supabase project URL
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY; // your service key (server side)
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ---------- CLOUDINARY CONFIG ---------- */
 cloudinary.config({
@@ -141,18 +147,30 @@ app.post("/api/submissions", upload.array("file", 5), async (req, res) => {
     const uploadedFiles = [];
 
     for (const file of req.files) {
-      const uploadResult = await new Promise((resolve, reject) => {
-        cloudinary.uploader.upload_stream(
-          { resource_type: "raw", folder: "assignments", use_filename: true, unique_filename: false },
-          (err, result) => (err ? reject(err) : resolve(result))
-        ).end(file.buffer);
-      });
+      // upload to Supabase Storage
+      const { data, error } = await supabase
+        .storage
+        .from('assignments') // make sure you created a bucket named "assignments"
+        .upload(`submissions/${Date.now()}_${file.originalname}`, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false
+        });
+
+      if (error) throw error;
+
+      // generate public URL
+      const { publicUrl, error: urlError } = supabase
+        .storage
+        .from('assignments')
+        .getPublicUrl(data.path);
+
+      if (urlError) throw urlError;
 
       uploadedFiles.push({
-        fileUrl: uploadResult.secure_url, // ✅ clean Cloudinary URL
+        fileUrl: publicUrl,
         fileName: file.originalname
       });
-    } // ✅ FOR LOOP CLOSED CORRECTLY
+    }
 
     const fileCount = uploadedFiles.length;
     const amountPaid = fileCount * 200;
@@ -182,7 +200,6 @@ app.post("/api/submissions", upload.array("file", 5), async (req, res) => {
     res.status(500).json({ message: "Submission failed" });
   }
 });
-
 /* --------- DOWNLOAD FILE ---------;*/
 app.get("/api/download", async (req, res) => {
   const { url, name } = req.query;
