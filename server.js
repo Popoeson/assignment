@@ -20,12 +20,12 @@ const SUPABASE_URL = process.env.SUPABASE_URL; // your Supabase project URL
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY; // your service key (server side)
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-/* ---------- CLOUDINARY CONFIG ---------- */
+/* ---------- CLOUDINARY CONFIG ---------- 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+}); */
 
 /* ---------- MONGODB CONNECTION ---------- */
 mongoose.connect(process.env.MONGO_URI)
