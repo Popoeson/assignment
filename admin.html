@@ -268,7 +268,7 @@ function renderStudents(submissions) {
           // ✅ Use backend download route to ensure correct filename & extension
           const downloadUrl = `${API_BASE}/download?url=${encodeURIComponent(f.fileUrl)}&name=${encodeURIComponent(f.fileName)}`;
           filesHTML += `
-            <a href="${downloadUrl}" class="file-link" target="_blank">
+            <a href="${downloadUrl}" class="file-link" target="_blank" rel="noopener noreferrer">
               ${f.fileName}
             </a>
           `;
