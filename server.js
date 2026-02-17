@@ -147,10 +147,9 @@ app.post("/api/submissions", upload.array("file", 5), async (req, res) => {
       });
 
       uploadedFiles.push({
-        fileUrl: uploadResult.secure_url.replace("/upload/", "/upload/fl_attachment/"),
-        fileName: file.originalname
-      });
-    }
+  fileUrl: uploadResult.secure_url, // ← store clean URL
+  fileName: file.originalname
+});
 
     const fileCount = uploadedFiles.length;
     const amountPaid = fileCount * 200;
