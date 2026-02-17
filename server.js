@@ -143,7 +143,7 @@ app.post("/api/submissions", upload.array("file", 5), async (req, res) => {
     for (const file of req.files) {
       const uploadResult = await new Promise((resolve, reject) => {
         cloudinary.uploader.upload_stream(
-          { resource_type: "raw", folder: "assignments", use_filename: true },
+          { resource_type: "raw", folder: "assignments", use_filename: true, unique_filename: false },
           (err, result) => (err ? reject(err) : resolve(result))
         ).end(file.buffer);
       });
