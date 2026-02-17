@@ -261,7 +261,13 @@ function renderStudents(submissions) {
       let filesHTML = "";
       if (sub.files && sub.files.length > 0) {
         sub.files.forEach(f => {
-          filesHTML += `<a href="${f.fileUrl}" class="file-link" target="_blank">${f.fileName}</a>`;
+          filesHTML += `<a href="${f.fileUrl}" 
+     download="${f.fileName}" 
+    class="file-link"
+  >
+    ${f.fileName}
+  </a>
+`;
         });
       }
       tableHTML += `
