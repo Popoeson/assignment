@@ -213,12 +213,13 @@ function renderStudents(submissions) {
   const search = searchAssignments.value.toLowerCase();
   const dept = filterDepartment.value;
 
-  // filter first
-  const filtered = submissions.filter(a => 
+  // Filter submissions first
+  const filtered = submissions.filter(a =>
     (!dept || a.department === dept) &&
     (!search || a.name.toLowerCase().includes(search) || a.email.toLowerCase().includes(search))
   );
 
+  // Group by first two words of student name
   const grouped = {};
   filtered.forEach(sub => {
     const key = sub.name.toLowerCase().split(" ").slice(0, 2).join(" ");
@@ -233,14 +234,16 @@ function renderStudents(submissions) {
     const card = document.createElement("div");
     card.classList.add("student-card");
 
+    // Header
     const header = document.createElement("div");
     header.classList.add("student-header");
     header.innerHTML = `
       <h4>${subs[0].name}</h4>
-      <span>${subs[0].department} | ${subs.length} submission${subs.length>1?'s':''}</span>
+      <span>${subs[0].department} | ${subs.length} submission${subs.length > 1 ? 's' : ''}</span>
     `;
     card.appendChild(header);
 
+    // Body
     const body = document.createElement("div");
     body.classList.add("student-body");
 
@@ -259,17 +262,19 @@ function renderStudents(submissions) {
 
     subs.forEach(sub => {
       let filesHTML = "";
+
       if (sub.files && sub.files.length > 0) {
         sub.files.forEach(f => {
-          filesHTML += `<a href="${f.fileUrl}" 
-     download="${f.fileName}" 
-    class="file-link"
-  >
-    ${f.fileName}
-  </a>
-`;
+          // ✅ Use backend download route to ensure correct filename & extension
+          const downloadUrl = `${API_BASE}/download?url=${encodeURIComponent(f.fileUrl)}&name=${encodeURIComponent(f.fileName)}`;
+          filesHTML += `
+            <a href="${downloadUrl}" class="file-link" target="_blank">
+              ${f.fileName}
+            </a>
+          `;
         });
       }
+
       tableHTML += `
         <tr>
           <td>${sub.course}</td>
@@ -285,15 +290,18 @@ function renderStudents(submissions) {
     body.innerHTML = tableHTML;
     card.appendChild(body);
 
-    // toggle collapse
+    // Toggle collapse
     header.onclick = () => body.style.display = body.style.display === "block" ? "none" : "block";
 
     studentsContainer.appendChild(card);
   });
 }
 
+// Event listeners
 searchAssignments.oninput = fetchAssignments;
 filterDepartment.onchange = fetchAssignments;
+
+// Initial fetch
 fetchAssignments();
 
 /* ---------- TOKENS ---------- */
