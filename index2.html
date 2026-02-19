@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Assignment Submission Portal</title>
+
+  <!-- Paystack -->
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+
+  <style>
+    * { box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+    body { margin: 0; background: linear-gradient(135deg, #f7f7f7, #e6dcc8); color: #333; }
+
+    /* ---------- HEADER ---------- */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 40px; background: rgba(255,255,255,0.9); border-bottom: 1px solid #ddd;
+    }
+    .logo { width: 70px; border-radius: 5px;}
+    .header-text { text-align: center; }
+    .header-text h1 { margin: 0; font-size: 22px; }
+    .header-text h3 { margin: 5px 0; font-size: 18px; }
+    .header-text p { margin: 0; font-size: 14px; font-style: italic; }
+
+    @media (max-width: 600px) {
+      header { padding: 15px; }
+      .logo { width: 50px; }
+      .header-text h1 { font-size: 16px; }
+      .header-text h3 { font-size: 14px; }
+      .header-text p { font-size: 12px; }
+    }
+
+    /* ---------- FORM ---------- */
+    .container {
+      max-width: 650px; margin: 40px auto; background: #fff;
+      padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      position: relative;
+    }
+    .form-group { margin-bottom: 18px; }
+    label { display: block; margin-bottom: 6px; font-weight: 500; }
+    input, select {
+      width: 100%; padding: 11px; border-radius: 6px;
+      border: 1px solid #ccc; font-size: 14px;
+    }
+
+    .submit-btn {
+      width: 100%; padding: 14px; background: #c7b89b;
+      border: none; border-radius: 30px; font-size: 16px; cursor: pointer;
+      transition: background 0.3s;
+      margin: 5px;
+    }
+    .submit-btn:disabled { background: #aaa; cursor: not-allowed; }
+
+    .hidden { display: none; }
+
+    .price-box {
+      background: #f5f1e7;
+      padding: 15px;
+      border-radius: 8px;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 15px;
+    }
+
+    .message { 
+      text-align: center; 
+      margin-top: 15px; 
+      font-weight: 600; 
+      padding: 12px; 
+      border-radius: 8px;
+      background: rgba(199, 184, 155, 0.1);
+      color: #2e7d32;
+      transition: all 0.3s;
+    }
+    .message.error { 
+      background: rgba(192, 57, 43, 0.1); 
+      color: #c0392b;
+    }
+
+    /* ---------- MODAL ---------- */
+    .modal {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      justify-content: center; align-items: center;
+    }
+    .modal-content {
+      background: #fff; padding: 25px; border-radius: 10px;
+      width: 90%; max-width: 400px; text-align: center;
+    }
+    .modal-actions { display: flex; justify-content: space-between; margin-top: 20px; }
+    .modal-actions button {
+      padding: 10px 22px; border: none; border-radius: 6px; cursor: pointer;
+    }
+    .cancel-btn { background: #ccc; }
+    .proceed-btn { background: #c7b89b; }
+
+    /* ---------- SPINNER OVERLAY ---------- */
+#overlay {
+  display: flex; /* initially flex to center spinner */
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 999;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #c7b89b;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <img src="owu.jpg" class="logo">
+  <div class="header-text">
+    <h1>Owu College of Management Technology</h1>
+    <h3>ICT Department</h3>
+    <p>Assignment Submission Portal</p>
+  </div>
+ <!-- <img src="dept.jpg" class="logo"> -->
+</header>
+
+<main class="container">
+  <form id="assignmentForm">
+
+    <div class="form-group">
+      <label>Do you already have a submission token?</label>
+      <select id="hasToken" required>
+        <option value="">Select</option>
+        <option value="yes">Yes, I have a token</option>
+        <option value="no">No, I don’t have a token</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Full Name</label>
+      <input name="name" required>
+    </div>
+
+    <div class="form-group">
+      <label>Department</label>
+      <input name="department" required>
+    </div>
+
+    <div class="form-group">
+      <label>Course</label>
+      <select name="course" required>
+        <option value="">Select course</option>
+        <option>Computer Appreciation II</option>
+
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" name="email" required>
+    </div>
+
+    <div class="form-group">
+      <label>Phone</label>
+      <input name="phone" required>
+    </div>
+
+    <div class="form-group">
+      <label>Number of files (Max 5)</label>
+      <select id="fileCount">
+        <option value="">Select</option>
+        <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+      </select>
+    </div>
+
+    <div id="fileInputs"></div>
+
+    <div id="paymentBox" class="hidden">
+      <div class="price-box">
+        Total Amount: ₦<span id="totalAmount">0</span>
+      </div>
+      <button type="button" class="submit-btn" id="payBtn">Proceed to Payment</button>
+    </div>
+
+    <button type="submit" class="submit-btn" id="submitBtn" disabled>
+      Submit Assignment
+    </button>
+
+    <div class="message" id="message"></div>
+  </form>
+</main>
+
+<!-- TOKEN MODAL -->
+<div class="modal" id="tokenModal">
+  <div class="modal-content">
+    <h3>Enter Submission Token</h3>
+    <input id="tokenInput" placeholder="ICT-XXXXXXX">
+    <div class="modal-actions">
+      <button class="cancel-btn" id="cancelBtn">Cancel</button>
+      <button class="proceed-btn" id="proceedBtn">Proceed</button>
+    </div>
+  </div>
+</div>
+
+<!-- SPINNER OVERLAY (update to include page-load spinner) -->
+<div id="overlay">
+  <div class="spinner"></div>
+  <div id="overlayText" style="margin-top:15px; color:#fff; font-size:16px;">Loading...</div>
+</div>
+<!-- SPINNER OVERLAY 
+<div id="overlay" class="hidden">
+  <div class="spinner"></div>
+</div> -->
+
+
+<script>
+const BACKEND_URL = "https://assignment-pd4v.onrender.com";
+
+// ---------- PAGE LOAD & SERVER CHECK ----------
+const overlay = document.getElementById("overlay");
+const message = document.getElementById("message");
+
+// Keep overlay visible until backend responds, no text
+async function waitForServer() {
+  overlay.style.display = "flex";
+  let serverUp = false;
+
+  while (!serverUp) {
+    try {
+      const res = await fetch(`${BACKEND_URL}/`);
+      if (res.ok) serverUp = true;
+    } catch (err) {
+      console.warn("Server not ready, retrying...");
+    }
+    if (!serverUp) await new Promise(r => setTimeout(r, 2000));
+  }
+
+  overlay.style.display = "none";
+  // Enable form controls once server is ready
+  Array.from(document.querySelectorAll("input, select, button")).forEach(el => el.disabled = false);
+}
+waitForServer();
+
+// ---------- FORM & UI ELEMENTS ----------
+const hasToken = document.getElementById("hasToken");
+const fileCount = document.getElementById("fileCount");
+const fileInputs = document.getElementById("fileInputs");
+const paymentBox = document.getElementById("paymentBox");
+const totalAmount = document.getElementById("totalAmount");
+const payBtn = document.getElementById("payBtn");
+const submitBtn = document.getElementById("submitBtn");
+const form = document.getElementById("assignmentForm");
+
+let paid = false;
+let paymentReference = null;
+let cachedFormData = null;
+
+// ---------- PAYMENT BOX VISIBILITY ----------
+hasToken.addEventListener("change", () => {
+  paymentBox.classList.toggle("hidden", hasToken.value === "yes");
+
+  // Reset payment status when switching options
+  if (hasToken.value === "yes") {
+    paid = true; // student has token → submit can be enabled
+  } else {
+    paid = false; // needs payment → submit disabled until paid
+  }
+
+  submitBtn.disabled = hasToken.value !== "yes" || !paid;
+});
+
+// ---------- DYNAMIC FILE INPUTS ----------
+fileCount.addEventListener("change", () => {
+  fileInputs.innerHTML = "";
+  const count = Number(fileCount.value);
+  if (!count) return;
+
+  for (let i = 1; i <= count; i++) {
+    fileInputs.innerHTML += `
+      <div class="form-group">
+        <label>Upload File ${i}</label>
+        <input type="file" name="file" required>
+      </div>`;
+  }
+
+  totalAmount.textContent = count * 500;
+  submitBtn.disabled = hasToken.value !== "yes" || !paid;
+});
+
+// ---------- PAYSTACK PAYMENT ----------
+payBtn.onclick = function() {
+  const amount = Number(totalAmount.textContent) * 100;
+
+  // Use normal function, not async
+  PaystackPop.setup({
+    key: "pk_live_9ea850872c6c1053cbf1530b95c65bdf4535048d",
+    email: form.email.value,
+    amount: amount,
+    callback: function(response) {
+      const reference = response.reference;
+      const name = form.name.value;
+      const email = form.email.value;
+      const expectedAmount = Number(totalAmount.textContent);
+
+      // Normal promise inside callback
+      fetch(`${BACKEND_URL}/api/payment/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reference, expectedAmount, name, email })
+      })
+      .then(res => res.json().then(data => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        if (!ok) {
+          message.textContent = data.message || "Payment verification failed";
+          message.className = "message error";
+          paid = false;
+          return;
+        }
+
+        paid = true;
+        paymentReference = reference;
+        paymentBox.classList.add("hidden");
+        submitBtn.disabled = false;
+        message.textContent = "✅ Payment successful! You can now submit your assignment.";
+        message.className = "message success";
+      })
+      .catch(err => {
+        console.error(err);
+        paid = false;
+        message.textContent = "❌ Payment verification failed. Try again.";
+        message.className = "message error";
+      });
+    },
+    onClose: function() {
+      if (!paid) {
+        message.textContent = "Payment not completed.";
+        message.className = "message error";
+      }
+    }
+  }).openIframe();
+};
+
+// ---------- FORM SUBMISSION ----------
+form.addEventListener("submit", e => {
+  e.preventDefault();
+  if (!paid) {
+    message.textContent = "❌ You must complete payment first.";
+    message.className = "message error";
+    return;
+  }
+  cachedFormData = new FormData(form);
+  document.getElementById("tokenModal").style.display = "flex";
+});
+
+// ---------- TOKEN MODAL ----------
+document.getElementById("cancelBtn").onclick = () => {
+  document.getElementById("tokenModal").style.display = "none";
+};
+
+document.getElementById("proceedBtn").onclick = async () => {
+  const token = document.getElementById("tokenInput").value.trim();
+  if (!token) {
+    message.textContent = "❌ Please enter your submission token.";
+    message.className = "message error";
+    return;
+  }
+
+  cachedFormData.append("token", token);
+  cachedFormData.append("paymentRef", paymentReference);
+
+  overlay.style.display = "flex";
+  submitBtn.disabled = true;
+  Array.from(form.elements).forEach(el => el.disabled = true);
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/submissions`, {
+      method: "POST",
+      body: cachedFormData
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      message.textContent = data.message || "Submission failed";
+      message.className = "message error";
+      return;
+    }
+
+    message.textContent = `✅ Submission successful! Your score: ${data.score}/20`;
+    message.className = "message success";
+    form.reset();
+    document.getElementById("tokenModal").style.display = "none";
+
+    paid = false;
+    paymentReference = null;
+    submitBtn.disabled = true;
+
+  } catch (err) {
+    console.error(err);
+    message.textContent = "❌ Submission failed. Please try again.";
+    message.className = "message error";
+  } finally {
+    overlay.style.display = "none";
+    Array.from(form.elements).forEach(el => el.disabled = false);
+  }
+};
+</script>
+</body>
+</html>
