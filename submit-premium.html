@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Assignment Submission Portal — Data Science / Web Design</title>
+
+  <style>
+    * { box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+    body { margin: 0; background: linear-gradient(135deg, #f7f7f7, #e6dcc8); color: #333; }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 40px; background: rgba(255,255,255,0.9); border-bottom: 1px solid #ddd;
+    }
+    .logo { width: 70px; border-radius: 5px;}
+    .header-text { text-align: center; }
+    .header-text h1 { margin: 0; font-size: 22px; }
+    .header-text h3 { margin: 5px 0; font-size: 18px; }
+    .header-text p { margin: 0; font-size: 14px; font-style: italic; }
+
+    @media (max-width: 600px) {
+      header { padding: 15px; }
+      .logo { width: 50px; }
+      .header-text h1 { font-size: 16px; }
+      .header-text h3 { font-size: 14px; }
+      .header-text p { font-size: 12px; }
+    }
+
+    .container {
+      max-width: 650px; margin: 40px auto; background: #fff;
+      padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      position: relative;
+    }
+    .form-group { margin-bottom: 18px; }
+    label { display: block; margin-bottom: 6px; font-weight: 500; }
+    input, select {
+      width: 100%; padding: 11px; border-radius: 6px;
+      border: 1px solid #ccc; font-size: 14px;
+    }
+    input:disabled, select:disabled { background: #f2f2f2; color: #777; }
+
+    .submit-btn {
+      width: 100%; padding: 14px; background: #c7b89b;
+      border: none; border-radius: 30px; font-size: 16px; cursor: pointer;
+      transition: background 0.3s;
+      margin: 5px;
+    }
+    .submit-btn:disabled { background: #aaa; cursor: not-allowed; }
+
+    .hidden { display: none !important; }
+
+    .price-box {
+      background: #f5f1e7;
+      padding: 15px;
+      border-radius: 8px;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 15px;
+    }
+
+    .banner {
+      background: rgba(46, 125, 50, 0.1);
+      color: #2e7d32;
+      padding: 12px 15px;
+      border-radius: 8px;
+      font-weight: 600;
+      margin-bottom: 18px;
+      text-align: center;
+    }
+
+    .token-box {
+      background: #fff8e7;
+      border: 1px dashed #c7b89b;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      margin-bottom: 18px;
+    }
+    .token-box .token-value {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #6b5a3a;
+      margin: 8px 0;
+      user-select: all;
+    }
+    .copy-btn {
+      padding: 8px 18px; border: none; border-radius: 20px;
+      background: #c7b89b; cursor: pointer; font-size: 13px;
+    }
+
+    .message {
+      text-align: center;
+      margin-top: 15px;
+      font-weight: 600;
+      padding: 12px;
+      border-radius: 8px;
+      background: rgba(199, 184, 155, 0.1);
+      color: #2e7d32;
+      transition: all 0.3s;
+    }
+    .message.error {
+      background: rgba(192, 57, 43, 0.1);
+      color: #c0392b;
+    }
+
+    .modal {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      justify-content: center; align-items: center;
+    }
+    .modal-content {
+      background: #fff; padding: 25px; border-radius: 10px;
+      width: 90%; max-width: 400px; text-align: center;
+    }
+    .modal-actions { display: flex; justify-content: space-between; margin-top: 20px; }
+    .modal-actions button {
+      padding: 10px 22px; border: none; border-radius: 6px; cursor: pointer;
+    }
+    .cancel-btn { background: #ccc; }
+    .proceed-btn { background: #c7b89b; }
+
+    #overlay {
+      display: flex;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      z-index: 999;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #c7b89b;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <img src="owu.jpg" class="logo">
+  <div class="header-text">
+    <h1>Owu College of Management Technology</h1>
+    <h3>ICT Department</h3>
+    <p>Data Science / Web Design — Assignment Submission</p>
+  </div>
+</header>
+
+<main class="container">
+
+  <div id="returnBanner" class="banner hidden">
+    ✅ Payment confirmed! Your token has been generated below — copy it, then attach your file(s) and submit.
+  </div>
+
+  <div id="tokenBox" class="token-box hidden">
+    <div>Your submission token</div>
+    <div class="token-value" id="tokenValue"></div>
+    <button type="button" class="copy-btn" id="copyTokenBtn">Copy Token</button>
+  </div>
+
+  <form id="assignmentForm">
+
+    <div class="form-group" id="hasTokenGroup">
+      <label>Do you already have a submission token?</label>
+      <select id="hasToken" required>
+        <option value="">Select</option>
+        <option value="yes">Yes, I have a token</option>
+        <option value="no">No, I don’t have a token</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Full Name</label>
+      <input name="name" required>
+    </div>
+
+    <div class="form-group">
+      <label>Department</label>
+      <input name="department" required>
+    </div>
+
+    <div class="form-group">
+      <label>Course</label>
+      <select name="course" required>
+        <option value="">Select course</option>
+        <option>Data Science</option>
+        <option>Web Design</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" name="email" required>
+    </div>
+
+    <div class="form-group">
+      <label>Phone</label>
+      <input name="phone" required>
+    </div>
+
+    <div class="form-group">
+      <label>Number of files (Max 5)</label>
+      <select id="fileCount">
+        <option value="">Select</option>
+        <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+      </select>
+    </div>
+
+    <div id="fileInputs"></div>
+
+    <div id="paymentBox" class="hidden">
+      <div class="price-box">
+        Total Amount: ₦<span id="totalAmount">0</span>
+      </div>
+      <button type="button" class="submit-btn" id="payBtn">Proceed to Payment</button>
+    </div>
+
+    <button type="submit" class="submit-btn hidden" id="submitBtn" disabled>
+      Submit Assignment
+    </button>
+
+    <div class="message" id="message"></div>
+  </form>
+</main>
+
+<div class="modal" id="tokenModal">
+  <div class="modal-content">
+    <h3>Enter Submission Token</h3>
+    <input id="tokenInput" placeholder="ICT-XXXXXXX">
+    <div class="modal-actions">
+      <button class="cancel-btn" id="cancelBtn">Cancel</button>
+      <button class="proceed-btn" id="proceedBtn">Proceed</button>
+    </div>
+  </div>
+</div>
+
+<div id="overlay">
+  <div class="spinner"></div>
+  <div id="overlayText" style="margin-top:15px; color:#fff; font-size:16px;">Loading...</div>
+</div>
+
+<script>
+/* ---------- PAGE CONFIG (only block that differs between tier pages) ---------- */
+const BACKEND_URL = "https://assignment-pd4v.onrender.com";
+const PRICE_PER_FILE = 1000;
+const STORAGE_KEY = "pendingAssignmentSubmission_premium";
+/* ------------------------------------------------------------------------- */
+
+const overlay = document.getElementById("overlay");
+const overlayText = document.getElementById("overlayText");
+const message = document.getElementById("message");
+const returnBanner = document.getElementById("returnBanner");
+const tokenBox = document.getElementById("tokenBox");
+const tokenValue = document.getElementById("tokenValue");
+
+const hasToken = document.getElementById("hasToken");
+const hasTokenGroup = document.getElementById("hasTokenGroup");
+const fileCount = document.getElementById("fileCount");
+const fileInputs = document.getElementById("fileInputs");
+const paymentBox = document.getElementById("paymentBox");
+const totalAmount = document.getElementById("totalAmount");
+const payBtn = document.getElementById("payBtn");
+const submitBtn = document.getElementById("submitBtn");
+const form = document.getElementById("assignmentForm");
+
+let paid = false;
+let paymentReference = null;
+let cachedFormData = null;
+
+function showMessage(text, isError) {
+  message.textContent = text;
+  message.className = isError ? "message error" : "message success";
+}
+
+function renderFileInputs(count) {
+  fileInputs.innerHTML = "";
+  for (let i = 1; i <= count; i++) {
+    fileInputs.innerHTML += `
+      <div class="form-group">
+        <label>Upload File ${i}</label>
+        <input type="file" name="file" required>
+      </div>`;
+  }
+}
+
+async function waitForServer() {
+  overlay.style.display = "flex";
+  overlayText.textContent = "Loading...";
+  let serverUp = false;
+
+  while (!serverUp) {
+    try {
+      const res = await fetch(`${BACKEND_URL}/`);
+      if (res.ok) serverUp = true;
+    } catch (err) {
+      console.warn("Server not ready, retrying...");
+    }
+    if (!serverUp) await new Promise(r => setTimeout(r, 2000));
+  }
+
+  overlay.style.display = "none";
+  Array.from(document.querySelectorAll("input, select, button")).forEach(el => el.disabled = false);
+
+  await handlePageEntry();
+}
+
+async function handlePageEntry() {
+  const params = new URLSearchParams(window.location.search);
+  const reference = params.get("reference") || params.get("trxref");
+
+  if (!reference) return;
+
+  window.history.replaceState({}, document.title, window.location.pathname);
+
+  const saved = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "null");
+  if (!saved) {
+    showMessage("We couldn't find your submission details for this payment. Please contact support with your reference: " + reference, true);
+    return;
+  }
+
+  overlay.style.display = "flex";
+  overlayText.textContent = "Confirming payment...";
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/payment/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reference, name: saved.name, email: saved.email })
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.verified) {
+      showMessage(data.message || "Payment verification failed.", true);
+      return;
+    }
+
+    paid = true;
+    paymentReference = reference;
+
+    hasTokenGroup.classList.add("hidden");
+    hasToken.required = false;
+
+    form.name.value = saved.name;
+    form.department.value = saved.department;
+    form.course.value = saved.course;
+    form.email.value = saved.email;
+    form.phone.value = saved.phone;
+    fileCount.value = saved.fileCount;
+
+    [form.name, form.department, form.course, form.email, form.phone, fileCount].forEach(el => el.disabled = true);
+
+    if (data.token) {
+      tokenValue.textContent = data.token;
+      tokenBox.classList.remove("hidden");
+      document.getElementById("tokenInput").value = data.token;
+    }
+
+    renderFileInputs(Number(saved.fileCount));
+    paymentBox.classList.add("hidden");
+    returnBanner.classList.remove("hidden");
+    submitBtn.classList.remove("hidden");
+    submitBtn.disabled = false;
+
+  } catch (err) {
+    console.error(err);
+    showMessage("Could not confirm payment. Please contact support with your reference: " + reference, true);
+  } finally {
+    overlay.style.display = "none";
+  }
+}
+
+waitForServer();
+
+hasToken.addEventListener("change", () => {
+  paymentBox.classList.toggle("hidden", hasToken.value === "yes");
+
+  if (hasToken.value === "yes") {
+    paid = true;
+    submitBtn.classList.remove("hidden");
+  } else {
+    paid = false;
+    submitBtn.classList.add("hidden");
+  }
+
+  submitBtn.disabled = hasToken.value !== "yes" || !paid;
+});
+
+fileCount.addEventListener("change", () => {
+  const count = Number(fileCount.value);
+  if (!count) return;
+
+  renderFileInputs(count);
+  totalAmount.textContent = count * PRICE_PER_FILE;
+
+  if (hasToken.value === "yes") {
+    submitBtn.disabled = false;
+  }
+});
+
+payBtn.onclick = async function () {
+  if (!form.name.value || !form.department.value || !form.course.value ||
+      !form.email.value || !form.phone.value || !fileCount.value) {
+    showMessage("❌ Please fill in all fields and select number of files before paying.", true);
+    return;
+  }
+
+  const details = {
+    name: form.name.value,
+    department: form.department.value,
+    course: form.course.value,
+    email: form.email.value,
+    phone: form.phone.value,
+    fileCount: fileCount.value
+  };
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(details));
+
+  overlay.style.display = "flex";
+  overlayText.textContent = "Redirecting to payment...";
+  payBtn.disabled = true;
+
+  try {
+    const callback_url = window.location.origin + window.location.pathname;
+
+    const res = await fetch(`${BACKEND_URL}/api/payment/initialize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: details.email,
+        name: details.name,
+        course: details.course,
+        fileCount: details.fileCount,
+        callback_url
+      })
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.authorization_url) {
+      showMessage(data.message || "Could not start payment. Please try again.", true);
+      overlay.style.display = "none";
+      payBtn.disabled = false;
+      return;
+    }
+
+    window.location.href = data.authorization_url;
+
+  } catch (err) {
+    console.error(err);
+    showMessage("❌ Could not start payment. Please try again.", true);
+    overlay.style.display = "none";
+    payBtn.disabled = false;
+  }
+};
+
+form.addEventListener("submit", e => {
+  e.preventDefault();
+  if (!paid) {
+    showMessage("❌ You must complete payment first.", true);
+    return;
+  }
+  cachedFormData = new FormData(form);
+  document.getElementById("tokenModal").style.display = "flex";
+});
+
+document.getElementById("cancelBtn").onclick = () => {
+  document.getElementById("tokenModal").style.display = "none";
+};
+
+document.getElementById("copyTokenBtn").onclick = () => {
+  navigator.clipboard.writeText(tokenValue.textContent).then(() => {
+    const btn = document.getElementById("copyTokenBtn");
+    const original = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => (btn.textContent = original), 1500);
+  });
+};
+
+document.getElementById("proceedBtn").onclick = async () => {
+  const token = document.getElementById("tokenInput").value.trim();
+  if (!token) {
+    showMessage("❌ Please enter your submission token.", true);
+    return;
+  }
+
+  cachedFormData.append("token", token);
+  cachedFormData.append("paymentRef", paymentReference || "");
+
+  overlay.style.display = "flex";
+  overlayText.textContent = "Submitting...";
+  submitBtn.disabled = true;
+  Array.from(form.elements).forEach(el => el.disabled = true);
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/submissions`, {
+      method: "POST",
+      body: cachedFormData
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      showMessage(data.message || "Submission failed", true);
+      return;
+    }
+
+    showMessage(`✅ Submission successful! Your score: ${data.score}/20`, false);
+    sessionStorage.removeItem(STORAGE_KEY);
+    form.reset();
+    document.getElementById("tokenModal").style.display = "none";
+    tokenBox.classList.add("hidden");
+
+    paid = false;
+    paymentReference = null;
+    submitBtn.disabled = true;
+
+  } catch (err) {
+    console.error(err);
+    showMessage("❌ Submission failed. Please try again.", true);
+  } finally {
+    overlay.style.display = "none";
+    Array.from(form.elements).forEach(el => el.disabled = false);
+  }
+};
+</script>
+</body>
+</html>
