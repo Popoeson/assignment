@@ -26,7 +26,7 @@ mongoose.connect(process.env.MONGO_URI)
 // Add new courses here later when the two pages get merged into one.
 const COURSES = {
   "Computer Appreciation II": { tier: "standard", pricePerFile: 500 },
-  "Data Science":             { tier: "premium",  pricePerFile: 1000 },
+  "Cyber Security and Cyber Crime":             { tier: "premium",  pricePerFile: 1000 },
   "Web Design":                { tier: "premium",  pricePerFile: 1000 }
 };
 
